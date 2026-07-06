@@ -1,0 +1,358 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		37E8C006E7225C00BC88EE0B /* IRLStreamKitDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA900FE0ECFDE03A1E13888 /* IRLStreamKitDemoApp.swift */; };
+		4ADF3534B3AF1525C5C0C5AD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00587A18D12FF4295F3100 /* ContentView.swift */; };
+		A8C9C1F176700ACAD61428BB /* DemoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D3B1E7F26403C8369B9F41 /* DemoModel.swift */; };
+		CC8D9FC56055BB073C0243D6 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D999CD02970C5A843E71A2 /* SettingsSheet.swift */; };
+		D1230ED95E7F986455C0CB87 /* IRLStreamKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA5A43E928E8304016C64472 /* IRLStreamKit */; };
+		D28E1FD262E134D55650E745 /* EventLogSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B518551F51B46ADEEB0B5B57 /* EventLogSheet.swift */; };
+		F2BDDBE474B6C4D82EE67C78 /* DemoSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2A18725BC7645D51413B97 /* DemoSettings.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		2EA183113F145F41A8B9B115 /* IRLStreamKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = IRLStreamKit; path = ..; sourceTree = SOURCE_ROOT; };
+		6AA900FE0ECFDE03A1E13888 /* IRLStreamKitDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRLStreamKitDemoApp.swift; sourceTree = "<group>"; };
+		6B2A18725BC7645D51413B97 /* DemoSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSettings.swift; sourceTree = "<group>"; };
+		B518551F51B46ADEEB0B5B57 /* EventLogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogSheet.swift; sourceTree = "<group>"; };
+		C0D999CD02970C5A843E71A2 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
+		CEBAA20D51ACAF308EFC35CC /* IRLStreamKitDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = IRLStreamKitDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E3D3B1E7F26403C8369B9F41 /* DemoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoModel.swift; sourceTree = "<group>"; };
+		FF00587A18D12FF4295F3100 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4C2E1925F4499DA24865BC4C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1230ED95E7F986455C0CB87 /* IRLStreamKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		29C291E30AEE9E2ED215F071 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CEBAA20D51ACAF308EFC35CC /* IRLStreamKitDemo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		368E29EE7C35B84DE601E472 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				2EA183113F145F41A8B9B115 /* IRLStreamKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		46EE561ED9A89B2F04BD2638 = {
+			isa = PBXGroup;
+			children = (
+				FF2ADDA94EE792B0EB1120AD /* IRLStreamKitDemo */,
+				368E29EE7C35B84DE601E472 /* Packages */,
+				29C291E30AEE9E2ED215F071 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FF2ADDA94EE792B0EB1120AD /* IRLStreamKitDemo */ = {
+			isa = PBXGroup;
+			children = (
+				FF00587A18D12FF4295F3100 /* ContentView.swift */,
+				E3D3B1E7F26403C8369B9F41 /* DemoModel.swift */,
+				6B2A18725BC7645D51413B97 /* DemoSettings.swift */,
+				B518551F51B46ADEEB0B5B57 /* EventLogSheet.swift */,
+				6AA900FE0ECFDE03A1E13888 /* IRLStreamKitDemoApp.swift */,
+				C0D999CD02970C5A843E71A2 /* SettingsSheet.swift */,
+			);
+			path = IRLStreamKitDemo;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		43D48A9FADB81BA851A07F26 /* IRLStreamKitDemo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B93E1DC77ADE4FE4B6038ACA /* Build configuration list for PBXNativeTarget "IRLStreamKitDemo" */;
+			buildPhases = (
+				393AC990E920086C4ABC7642 /* Sources */,
+				4C2E1925F4499DA24865BC4C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = IRLStreamKitDemo;
+			packageProductDependencies = (
+				AA5A43E928E8304016C64472 /* IRLStreamKit */,
+			);
+			productName = IRLStreamKitDemo;
+			productReference = CEBAA20D51ACAF308EFC35CC /* IRLStreamKitDemo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D081A44B4EF602D9DBC4D8FD /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					43D48A9FADB81BA851A07F26 = {
+						DevelopmentTeam = 2H3TG89HPF;
+					};
+				};
+			};
+			buildConfigurationList = F3BE3F8CC6A8EDD9E58FE687 /* Build configuration list for PBXProject "IRLStreamKitDemo" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 46EE561ED9A89B2F04BD2638;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				599F4EF96A84BB8067AC2A7B /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 29C291E30AEE9E2ED215F071 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				43D48A9FADB81BA851A07F26 /* IRLStreamKitDemo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		393AC990E920086C4ABC7642 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4ADF3534B3AF1525C5C0C5AD /* ContentView.swift in Sources */,
+				A8C9C1F176700ACAD61428BB /* DemoModel.swift in Sources */,
+				F2BDDBE474B6C4D82EE67C78 /* DemoSettings.swift in Sources */,
+				D28E1FD262E134D55650E745 /* EventLogSheet.swift in Sources */,
+				37E8C006E7225C00BC88EE0B /* IRLStreamKitDemoApp.swift in Sources */,
+				CC8D9FC56055BB073C0243D6 /* SettingsSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5476C51D8E6015F9E49DFAE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "The demo captures video from the camera to test live streaming.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo captures microphone audio to test live streaming.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.uxirl.streamkitdemo;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		6554F0EFBFA85EBF1700AF81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 2H3TG89HPF;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		939B85A83CB882643B9B90F7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "The demo captures video from the camera to test live streaming.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo captures microphone audio to test live streaming.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.uxirl.streamkitdemo;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AD76F71C1753BA3C3F28F8DB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 2H3TG89HPF;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B93E1DC77ADE4FE4B6038ACA /* Build configuration list for PBXNativeTarget "IRLStreamKitDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				939B85A83CB882643B9B90F7 /* Debug */,
+				5476C51D8E6015F9E49DFAE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F3BE3F8CC6A8EDD9E58FE687 /* Build configuration list for PBXProject "IRLStreamKitDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6554F0EFBFA85EBF1700AF81 /* Debug */,
+				AD76F71C1753BA3C3F28F8DB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		599F4EF96A84BB8067AC2A7B /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA5A43E928E8304016C64472 /* IRLStreamKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IRLStreamKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = D081A44B4EF602D9DBC4D8FD /* Project object */;
+}

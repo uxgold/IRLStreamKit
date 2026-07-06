@@ -41,6 +41,20 @@ try await engine.goLive(StreamConfiguration(
 // engine.events() feeds toasts/haptics/logging.
 ```
 
+## Demo app
+
+`Demo/` contains a field-test app (`IRLStreamKitDemo`) that consumes the
+library strictly through its public API — no `@testable`, no internal access —
+so it doubles as the reference integration. It exercises everything on a
+phone: camera preview, go-live over SRTLA/SRT/RTMP, live bitrate changes, mic
+mute, camera flip, bonding-link shares, audio meter, and a scrolling event log.
+
+```sh
+cd Demo && xcodegen generate
+xcodebuild -project IRLStreamKitDemo.xcodeproj -scheme IRLStreamKitDemo \
+  -destination 'generic/platform=iOS' -allowProvisioningUpdates build
+```
+
 ## Build & test
 
 ```sh
