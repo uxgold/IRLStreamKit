@@ -29,3 +29,27 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_NSCameraUsageDescription: "The demo captures video from the camera to test live streaming."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "The demo captures microphone audio to test live streaming."
+  IRLStreamKitDemoTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - IRLStreamKitDemoTests
+    dependencies:
+      - target: IRLStreamKitDemo
+      - package: IRLStreamKit
+        product: IRLStreamKitTestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.uxirl.streamkitdemo.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  IRLStreamKitDemo:
+    build:
+      targets:
+        IRLStreamKitDemo: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - IRLStreamKitDemoTests

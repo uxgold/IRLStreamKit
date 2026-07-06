@@ -13,7 +13,7 @@ struct ContentView: View {
             if case .idle = model.state.phase {
                 idlePlaceholder
             } else {
-                CameraPreviewView(source: model.engine)
+                CameraPreviewView(source: model.previewSource)
                     .ignoresSafeArea()
             }
             VStack(spacing: 8) {
@@ -259,6 +259,9 @@ struct BondingBar: View {
                         }
                     }
                     .frame(height: 6)
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(link.bytesSent), countStyle: .binary))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 62, alignment: .trailing)
                     Text(link.rttMilliseconds.map { "\($0) ms" } ?? "—")
                         .foregroundStyle(.secondary)
                         .frame(width: 52, alignment: .trailing)

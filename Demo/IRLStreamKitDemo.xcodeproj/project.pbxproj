@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3189D76DFA38700C77BE8145 /* IRLStreamKitTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 07E698F6C595E831A5E480C9 /* IRLStreamKitTestSupport */; };
+		346B8DFF8CE15548D019806C /* DemoModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 090B7DE53E9BB517DDFB6284 /* DemoModelTests.swift */; };
 		37E8C006E7225C00BC88EE0B /* IRLStreamKitDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA900FE0ECFDE03A1E13888 /* IRLStreamKitDemoApp.swift */; };
 		4ADF3534B3AF1525C5C0C5AD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00587A18D12FF4295F3100 /* ContentView.swift */; };
 		A8C9C1F176700ACAD61428BB /* DemoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D3B1E7F26403C8369B9F41 /* DemoModel.swift */; };
@@ -16,7 +18,18 @@
 		F2BDDBE474B6C4D82EE67C78 /* DemoSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2A18725BC7645D51413B97 /* DemoSettings.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		405C80A51E1AD9A47ACC1502 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D081A44B4EF602D9DBC4D8FD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 43D48A9FADB81BA851A07F26;
+			remoteInfo = IRLStreamKitDemo;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		090B7DE53E9BB517DDFB6284 /* DemoModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoModelTests.swift; sourceTree = "<group>"; };
 		2EA183113F145F41A8B9B115 /* IRLStreamKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = IRLStreamKit; path = ..; sourceTree = SOURCE_ROOT; };
 		6AA900FE0ECFDE03A1E13888 /* IRLStreamKitDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRLStreamKitDemoApp.swift; sourceTree = "<group>"; };
 		6B2A18725BC7645D51413B97 /* DemoSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSettings.swift; sourceTree = "<group>"; };
@@ -24,6 +37,7 @@
 		C0D999CD02970C5A843E71A2 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
 		CEBAA20D51ACAF308EFC35CC /* IRLStreamKitDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = IRLStreamKitDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3D3B1E7F26403C8369B9F41 /* DemoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoModel.swift; sourceTree = "<group>"; };
+		E3EECC1039DEC8B489D924A4 /* IRLStreamKitDemoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IRLStreamKitDemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF00587A18D12FF4295F3100 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -36,6 +50,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		77E5122CBBC38BA7E1248B9C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3189D76DFA38700C77BE8145 /* IRLStreamKitTestSupport in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -43,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				CEBAA20D51ACAF308EFC35CC /* IRLStreamKitDemo.app */,
+				E3EECC1039DEC8B489D924A4 /* IRLStreamKitDemoTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -59,9 +82,18 @@
 			isa = PBXGroup;
 			children = (
 				FF2ADDA94EE792B0EB1120AD /* IRLStreamKitDemo */,
+				C8AA60B3179F8496CC2CF4D1 /* IRLStreamKitDemoTests */,
 				368E29EE7C35B84DE601E472 /* Packages */,
 				29C291E30AEE9E2ED215F071 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		C8AA60B3179F8496CC2CF4D1 /* IRLStreamKitDemoTests */ = {
+			isa = PBXGroup;
+			children = (
+				090B7DE53E9BB517DDFB6284 /* DemoModelTests.swift */,
+			);
+			path = IRLStreamKitDemoTests;
 			sourceTree = "<group>";
 		};
 		FF2ADDA94EE792B0EB1120AD /* IRLStreamKitDemo */ = {
@@ -99,6 +131,26 @@
 			productReference = CEBAA20D51ACAF308EFC35CC /* IRLStreamKitDemo.app */;
 			productType = "com.apple.product-type.application";
 		};
+		65CF433F4139D5AB508501D5 /* IRLStreamKitDemoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1E73E49312F1ED4CD8774CEF /* Build configuration list for PBXNativeTarget "IRLStreamKitDemoTests" */;
+			buildPhases = (
+				26BDFB9C8B7B7F5694775DE2 /* Sources */,
+				77E5122CBBC38BA7E1248B9C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8F28F4604689D17148258DC3 /* PBXTargetDependency */,
+			);
+			name = IRLStreamKitDemoTests;
+			packageProductDependencies = (
+				07E698F6C595E831A5E480C9 /* IRLStreamKitTestSupport */,
+			);
+			productName = IRLStreamKitDemoTests;
+			productReference = E3EECC1039DEC8B489D924A4 /* IRLStreamKitDemoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -109,6 +161,9 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					43D48A9FADB81BA851A07F26 = {
+						DevelopmentTeam = 2H3TG89HPF;
+					};
+					65CF433F4139D5AB508501D5 = {
 						DevelopmentTeam = 2H3TG89HPF;
 					};
 				};
@@ -131,11 +186,20 @@
 			projectRoot = "";
 			targets = (
 				43D48A9FADB81BA851A07F26 /* IRLStreamKitDemo */,
+				65CF433F4139D5AB508501D5 /* IRLStreamKitDemoTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		26BDFB9C8B7B7F5694775DE2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				346B8DFF8CE15548D019806C /* DemoModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		393AC990E920086C4ABC7642 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -151,7 +215,49 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		8F28F4604689D17148258DC3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 43D48A9FADB81BA851A07F26 /* IRLStreamKitDemo */;
+			targetProxy = 405C80A51E1AD9A47ACC1502 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		1897F580692B67F5F1D00CD0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.uxirl.streamkitdemo.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IRLStreamKitDemo.app/IRLStreamKitDemo";
+			};
+			name = Release;
+		};
+		21EAE61EAE1B9467EDABA94D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.uxirl.streamkitdemo.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IRLStreamKitDemo.app/IRLStreamKitDemo";
+			};
+			name = Debug;
+		};
 		5476C51D8E6015F9E49DFAE6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -320,6 +426,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1E73E49312F1ED4CD8774CEF /* Build configuration list for PBXNativeTarget "IRLStreamKitDemoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				21EAE61EAE1B9467EDABA94D /* Debug */,
+				1897F580692B67F5F1D00CD0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		B93E1DC77ADE4FE4B6038ACA /* Build configuration list for PBXNativeTarget "IRLStreamKitDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -348,6 +463,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		07E698F6C595E831A5E480C9 /* IRLStreamKitTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IRLStreamKitTestSupport;
+		};
 		AA5A43E928E8304016C64472 /* IRLStreamKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IRLStreamKit;

@@ -28,9 +28,35 @@ struct SettingsSheet: View {
                             in: 500 ... 8000,
                             step: 250
                         )
+                        Stepper(
+                            String(format: "Reconnect delay: %.0f s", settings.reconnectDelaySeconds),
+                            value: $settings.reconnectDelaySeconds,
+                            in: 1 ... 30,
+                            step: 1
+                        )
                         Picker("Adaptive bitrate", selection: adaptiveBitrateBinding) {
                             ForEach(AdaptiveBitratePreset.allCases, id: \.rawValue) { preset in
                                 Text(preset.rawValue).tag(preset)
+                            }
+                        }
+                    }
+                }
+                if settings.endpointKind == .srtla {
+                    Section("Bonding") {
+                        Toggle("Manual priorities", isOn: $settings.manualBondingPriorities)
+                        if settings.manualBondingPriorities {
+                            ForEach($settings.bondingLinks) { $link in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Toggle(link.interfaceRaw.capitalized, isOn: $link.enabled)
+                                    if link.enabled {
+                                        Stepper(
+                                            "Priority: \(link.priority)",
+                                            value: $link.priority,
+                                            in: 1 ... 10
+                                        )
+                                        .font(.callout)
+                                    }
+                                }
                             }
                         }
                     }
@@ -51,6 +77,13 @@ struct SettingsSheet: View {
                         Text("H.264").tag(StreamCodec.h264)
                     }
                     Toggle("Portrait stream", isOn: $settings.isPortrait)
+                }
+                Section("Audio") {
+                    Picker("Bitrate", selection: $settings.audioBitrateKilobits) {
+                        ForEach([64, 96, 128, 160, 192, 256, 320], id: \.self) { kbps in
+                            Text("\(kbps) kb/s").tag(kbps)
+                        }
+                    }
                 }
             }
             .navigationTitle("Stream settings")

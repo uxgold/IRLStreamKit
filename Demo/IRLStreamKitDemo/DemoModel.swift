@@ -16,7 +16,12 @@ final class DemoModel {
         let text: String
     }
 
-    let engine = IRLStreamEngine()
+    // Deliberately the protocol, not the concrete class — the same seam UX IRL
+    // view models will bind to (and the same one tests inject a fake through).
+    let engine: any StreamEngine
+    // The preview is a UI-only capability outside the StreamEngine protocol;
+    // nil for fakes, which is exactly what CameraPreviewView's placeholder is for.
+    let previewSource: (any CameraPreviewSource)?
     private(set) var log: [LogEntry] = []
     var lastError: String?
 
@@ -30,7 +35,10 @@ final class DemoModel {
     // engine finishes its event streams and the for-await loop exits.
     private var eventsTask: Task<Void, Never>?
 
-    init() {
+    init(engine: (any StreamEngine)? = nil) {
+        let engine = engine ?? IRLStreamEngine()
+        self.engine = engine
+        previewSource = engine as? any CameraPreviewSource
         let events = engine.events()
         eventsTask = Task { [weak self] in
             for await event in events {

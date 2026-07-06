@@ -10,14 +10,32 @@ struct DemoSettings: Codable, Equatable {
         var id: String { rawValue }
     }
 
+    struct BondingLinkSetting: Codable, Equatable, Identifiable {
+        var interfaceRaw: String
+        var priority: Int = 1
+        var enabled: Bool = true
+
+        var id: String { interfaceRaw }
+
+        var interface: BondingPriorities.Link.Interface? {
+            BondingPriorities.Link.Interface(rawValue: interfaceRaw)
+        }
+    }
+
     var endpointKind: EndpointKind = .srtla
     var urlString: String = "srtla://"
     var latencyMilliseconds: Int = 3000
+    var reconnectDelaySeconds: Double = 5
     var adaptiveBitrateRaw: String = AdaptiveBitratePreset.belabox.rawValue
+    var manualBondingPriorities: Bool = false
+    var bondingLinks: [BondingLinkSetting] = BondingPriorities.Link.Interface.allCases.map {
+        BondingLinkSetting(interfaceRaw: $0.rawValue)
+    }
     var resolutionRaw: String = StreamResolution.fhd1080p.rawValue
     var frameRate: Int = 30
     var codecRaw: String = StreamCodec.hevc.rawValue
     var targetBitrateMegabits: Double = 6
+    var audioBitrateKilobits: Int = 128
     var isPortrait: Bool = true
 
     var adaptiveBitrate: AdaptiveBitratePreset {
@@ -35,13 +53,29 @@ struct DemoSettings: Codable, Equatable {
         set { codecRaw = newValue.rawValue }
     }
 
+    var bondingPriorities: BondingPriorities {
+        guard manualBondingPriorities else {
+            return .automatic
+        }
+        return BondingPriorities(
+            enabled: true,
+            links: bondingLinks.compactMap { link in
+                link.interface.map {
+                    BondingPriorities.Link(interface: $0, priority: link.priority, enabled: link.enabled)
+                }
+            }
+        )
+    }
+
     func buildConfiguration() -> StreamConfiguration? {
         guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             return nil
         }
         let options = SRTOptions(
             latencyMilliseconds: latencyMilliseconds,
-            adaptiveBitrate: adaptiveBitrate
+            adaptiveBitrate: adaptiveBitrate,
+            bondingPriorities: bondingPriorities,
+            reconnectDelaySeconds: reconnectDelaySeconds
         )
         let endpoint: StreamEndpoint = switch endpointKind {
         case .srtla: .srtla(url: url, options: options)
@@ -56,7 +90,8 @@ struct DemoSettings: Codable, Equatable {
                 codec: codec,
                 targetBitrate: Int(targetBitrateMegabits * 1_000_000),
                 isPortrait: isPortrait
-            )
+            ),
+            audio: AudioConfiguration(bitrate: audioBitrateKilobits * 1000)
         )
     }
 
