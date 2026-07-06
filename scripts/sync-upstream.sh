@@ -30,6 +30,7 @@ echo
 MAPPINGS=(
     "Sources/IRLStreamKit/Vendor/Media:Moblin/Media"
     "Sources/IRLStreamKit/Vendor/Common/Various:Common/Various"
+    "Sources/IRLStreamKit/Vendor/Various/Media.swift:Moblin/Various/Media.swift"
     "Sources/IRLStreamKit/Vendor/Various/Logger.swift:Moblin/Various/Logger.swift"
     "Sources/IRLStreamKit/Vendor/Various/SimpleTimer.swift:Moblin/Various/SimpleTimer.swift"
     "Sources/IRLStreamKit/Vendor/Various/Detection.swift:Moblin/Various/Detection.swift"

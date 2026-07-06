@@ -14,6 +14,7 @@ Pinned upstream commit: 73dd0c9b538e2f41b9efdd6a679b2fbb40a5465c
 |---|---|
 | `Media/` (entire tree) | `Moblin/Media/` |
 | `Common/Various/` | `Common/Various/` |
+| `Various/Media.swift` | `Moblin/Various/Media.swift` |
 | `Various/Logger.swift` | `Moblin/Various/Logger.swift` |
 | `Various/SimpleTimer.swift` | `Moblin/Various/SimpleTimer.swift` |
 | `Various/Detection.swift` | `Moblin/Various/Detection.swift` |
