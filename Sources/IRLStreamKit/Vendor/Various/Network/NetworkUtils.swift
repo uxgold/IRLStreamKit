@@ -1,0 +1,105 @@
+import Foundation
+import Network
+import WebKit
+
+extension NWPath {
+    // The list contains duplicates since iOS 26. Apple bug?
+    func uniqueAvailableInterfaces() -> [NWInterface] {
+        var interfaces: [NWInterface] = []
+        for interface in availableInterfaces where !interfaces.contains(interface) {
+            interfaces.append(interface)
+        }
+        return interfaces
+    }
+}
+
+extension NWEndpoint.Port {
+    init(integer: Int) {
+        self.init(integerLiteral: UInt16(clamping: integer))
+    }
+}
+
+extension NWConnection.ContentContext {
+    func webSocketOperation() -> NWProtocolWebSocket.Opcode? {
+        let definitions = protocolMetadata(definition: NWProtocolWebSocket.definition) as? Network
+            .NWProtocolWebSocket
+            .Metadata
+        return definitions?.opcode
+    }
+}
+
+extension NWConnection {
+    func sendWebSocket(data: Data?, opcode: NWProtocolWebSocket.Opcode) {
+        let metadata = NWProtocolWebSocket.Metadata(opcode: opcode)
+        let context = NWConnection.ContentContext(identifier: "context", metadata: [metadata])
+        send(content: data, contentContext: context, isComplete: true, completion: .idempotent)
+    }
+}
+
+enum NetworkResponse<T> {
+    case success(T)
+    case authError
+    case error
+
+    func isSuccessful() -> Bool {
+        switch self {
+        case .success:
+            true
+        default:
+            false
+        }
+    }
+}
+
+typealias OperationResult = NetworkResponse<Data>
+
+func makeUrl(_ path: String, _ parameters: [(String, String)]) -> String {
+    var components = URLComponents()
+    components.path = path
+    components.queryItems = parameters.map { URLQueryItem(name: $0, value: $1) }
+    return components.string ?? ""
+}
+
+func makeMdnsHostname(deviceName: String) -> String {
+    let name = deviceName
+        .lowercased()
+        .replacingOccurrences(of: " ", with: "-")
+        .replacing(/-+/, with: "-")
+        .trimmingCharacters(in: ["-"])
+        .replacing(/[^\w\d-]/, with: "")
+    return "\(name).local"
+}
+
+func httpRequest(request: URLRequest,
+                 queue: DispatchQueue = .main,
+                 completion: ((Data?, URLResponse?, (any Error)?) -> Void)? = nil)
+{
+    URLSession.shared.dataTask(with: request) { data, response, error in
+        queue.async {
+            completion?(data, response, error)
+        }
+    }
+    .resume()
+}
+
+func getHttpsUrl(text: String) -> URL? {
+    if text.starts(with: "https://"), let url = URL(string: text.trim()) {
+        return url
+    }
+    return nil
+}
+
+extension WKWebViewConfiguration {
+    func setHttpProxy(endpoint: NWEndpoint?) {
+        guard #available(iOS 17, *) else {
+            return
+        }
+        if let endpoint {
+            websiteDataStore.proxyConfigurations = [
+                .init(httpCONNECTProxy: endpoint),
+            ]
+        } else {
+            websiteDataStore.proxyConfigurations = []
+        }
+    }
+}

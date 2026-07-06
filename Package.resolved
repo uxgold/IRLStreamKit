@@ -1,0 +1,56 @@
+{
+  "originHash" : "10c6763e9bccd9941b2faaaddcea43c693e03ca44f59f043839069269f6f56bd",
+  "pins" : [
+    {
+      "identity" : "datachannel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/eerimoq/DataChannel",
+      "state" : {
+        "revision" : "85316be8ab11dd0e76e2df604d685934ab697ee7"
+      }
+    },
+    {
+      "identity" : "metalpetal",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/eerimoq/MetalPetal",
+      "state" : {
+        "revision" : "f9b78897bd4214bb097f352a1bde0a4f4a1e2ddb"
+      }
+    },
+    {
+      "identity" : "rist",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/eerimoq/Rist",
+      "state" : {
+        "revision" : "e60e1c53c0f60321a103e4cbf120a710912da28a"
+      }
+    },
+    {
+      "identity" : "srtswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/eerimoq/SrtSwift",
+      "state" : {
+        "revision" : "7152305fd14439dcb5e7e13a4e4009f90c3b6968"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections.git",
+      "state" : {
+        "revision" : "a0cb0954ecb21e4e31b0070e6ed5674e8556685a",
+        "version" : "1.6.0"
+      }
+    },
+    {
+      "identity" : "truetime.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Gisman4ik/TrueTime.swift",
+      "state" : {
+        "revision" : "78f7945469ad8dd6344987f8e62afc13b8c32bc2",
+        "version" : "5.2.0"
+      }
+    }
+  ],
+  "version" : 3
+}

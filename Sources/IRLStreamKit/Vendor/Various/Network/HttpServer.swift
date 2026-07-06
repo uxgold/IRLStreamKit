@@ -1,0 +1,421 @@
+import Foundation
+import Network
+
+private struct HttpRequestParseResult {
+    let method: String
+    let path: String
+    let version: String
+    let headers: [SettingsHttpHeader]
+    let data: Data
+}
+
+private class HttpRequestParser: HttpParser {
+    func parse() -> (Bool, HttpRequestParseResult?) {
+        var offset = 0
+        guard let (startLine, nextLineOffset) = getLine(data: data, offset: offset) else {
+            return (false, nil)
+        }
+        offset = nextLineOffset
+        let startParts = startLine.split(separator: " ")
+        guard startParts.count == 3 else {
+            return (true, nil)
+        }
+        let method = startParts[0]
+        let path = startParts[1]
+        guard !path.contains("//"), !path.contains("..") else {
+            return (true, nil)
+        }
+        let version = startParts[2]
+        guard version.hasPrefix("HTTP/1.") else {
+            return (true, nil)
+        }
+        var headers: [SettingsHttpHeader] = []
+        while let (line, nextLineOffset) = getLine(data: data, offset: offset) {
+            let parts = line.lowercased().split(separator: " ")
+            if parts.count == 2 {
+                headers.append(.init(name: String(parts[0]), value: String(parts[1])))
+            }
+            if line.isEmpty {
+                let contentLengthHeader = headers.first(where: { $0.name == "content-length:" })
+                let contentLength = Int(contentLengthHeader?.value ?? "0") ?? 0
+                guard contentLength >= 0 else {
+                    return (true, nil)
+                }
+                let body = data.advanced(by: nextLineOffset)
+                guard body.count >= contentLength else {
+                    return (false, nil)
+                }
+                return (true, HttpRequestParseResult(method: String(method),
+                                                     path: String(path),
+                                                     version: String(version),
+                                                     headers: headers,
+                                                     data: body.prefix(contentLength)))
+            }
+            offset = nextLineOffset
+        }
+        return (false, nil)
+    }
+}
+
+class HttpServerRequest {
+    let method: String
+    let path: String
+    let version: String
+    let headers: [SettingsHttpHeader]
+    let body: Data
+
+    fileprivate init(
+        method: String,
+        path: String,
+        version: String,
+        headers: [SettingsHttpHeader],
+        body: Data
+    ) {
+        self.method = method
+        self.path = path
+        self.version = version
+        self.headers = headers
+        self.body = body
+    }
+
+    fileprivate func getContentType() -> String {
+        switch path.split(separator: ".").last {
+        case "html":
+            "text/html"
+        case "mjs":
+            "text/javascript"
+        case "css":
+            "text/css"
+        case "woff2":
+            "font/woff2"
+        case "ico":
+            "image/vnd.microsoft.icon"
+        case "png":
+            "image/png"
+        default:
+            "text/html"
+        }
+    }
+}
+
+enum HttpServerStatus {
+    case ok
+    case created
+    case noContent
+    case badRequest
+    case notFound
+    case methodNotAllowed
+
+    func code() -> Int {
+        switch self {
+        case .ok:
+            200
+        case .created:
+            201
+        case .noContent:
+            204
+        case .badRequest:
+            400
+        case .notFound:
+            404
+        case .methodNotAllowed:
+            405
+        }
+    }
+
+    func text() -> String {
+        switch self {
+        case .ok:
+            "OK"
+        case .created:
+            "Created"
+        case .noContent:
+            "No Content"
+        case .badRequest:
+            "Bad Request"
+        case .notFound:
+            "Not Found"
+        case .methodNotAllowed:
+            "Method Not Allowed"
+        }
+    }
+}
+
+class HttpServerResponse {
+    private weak var connection: HttpServerConnection?
+
+    fileprivate init(connection: HttpServerConnection) {
+        self.connection = connection
+    }
+
+    func send(status: HttpServerStatus = .ok) {
+        send(data: Data(), status: status)
+    }
+
+    func send(data: Data, status: HttpServerStatus = .ok) {
+        connection?.sendAndClose(status: status, content: data)
+    }
+
+    func send(text: String, status: HttpServerStatus = .ok) {
+        send(data: text.utf8Data, status: status)
+    }
+
+    func send(data: Data, status: HttpServerStatus, contentType: String, headers: [SettingsHttpHeader] = []) {
+        connection?.sendAndClose(
+            status: status,
+            content: data,
+            contentType: contentType,
+            extraHeaders: headers
+        )
+    }
+
+    func sendFile(url: URL, contentType: String, headers: [SettingsHttpHeader] = []) {
+        connection?.sendFileAndClose(
+            fileUrl: url,
+            contentType: contentType,
+            extraHeaders: headers
+        )
+    }
+}
+
+private class HttpServerConnection: @unchecked Sendable {
+    private let connection: NWConnection
+    private weak var server: HttpServer?
+    private var parser = HttpRequestParser()
+    private var request: HttpServerRequest?
+
+    init(connection: NWConnection, server: HttpServer) {
+        self.connection = connection
+        self.server = server
+    }
+
+    func receiveData() {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, _, error in
+            guard let data, error == nil else {
+                if let error {
+                    logger.info("http-server: Connection error: \(error.localizedDescription)")
+                }
+                return
+            }
+            self.handleData(data: data)
+            self.receiveData()
+        }
+    }
+
+    private func handleData(data: Data) {
+        parser.append(data: data)
+        let (done, result) = parser.parse()
+        guard done else {
+            return
+        }
+        guard let result, let server else {
+            connection.cancel()
+            return
+        }
+        request = HttpServerRequest(method: result.method,
+                                    path: result.path,
+                                    version: result.version,
+                                    headers: result.headers,
+                                    body: result.data)
+        guard let route = server.findRoute(request: request!) else {
+            sendAndClose(status: .notFound, content: Data())
+            return
+        }
+        route.handler(request!, HttpServerResponse(connection: self))
+    }
+
+    func sendAndClose(status: HttpServerStatus,
+                      content: Data,
+                      contentType: String? = nil,
+                      extraHeaders: [SettingsHttpHeader] = [])
+    {
+        guard let request else {
+            return
+        }
+        var lines: [String] = []
+        lines.append("\(request.version) \(status.code()) \(status.text())")
+        if !content.isEmpty {
+            lines.append("Content-Type: \(contentType ?? request.getContentType())")
+        }
+        appendExtraHeaders(headers: extraHeaders, lines: &lines)
+        let headerData = appendCloseHeaderAndFinalize(lines: &lines)
+        sendAndClose(data: headerData + content)
+    }
+
+    func sendFileAndClose(fileUrl: URL,
+                          contentType: String,
+                          extraHeaders: [SettingsHttpHeader] = [])
+    {
+        guard let request else {
+            return
+        }
+        guard let fileHandle = try? FileHandle(forReadingFrom: fileUrl) else {
+            sendAndClose(status: .notFound, content: Data())
+            return
+        }
+        let fileSize = fileUrl.fileSize
+        var lines: [String] = []
+        lines.append("\(request.version) \(HttpServerStatus.ok.code()) \(HttpServerStatus.ok.text())")
+        lines.append("Content-Type: \(contentType)")
+        lines.append("Content-Length: \(fileSize)")
+        appendExtraHeaders(headers: extraHeaders, lines: &lines)
+        let headerData = appendCloseHeaderAndFinalize(lines: &lines)
+        connection.send(content: headerData, completion: .contentProcessed { error in
+            if error != nil {
+                self.closeFileAndConnection(fileHandle: fileHandle)
+                return
+            }
+            self.sendFileChunk(fileHandle: fileHandle, remaining: fileSize)
+        })
+    }
+
+    private func sendFileChunk(fileHandle: FileHandle, remaining: UInt64) {
+        let chunkSize = min(Int(remaining), 512 * 1024)
+        guard chunkSize > 0,
+              let chunk = try? fileHandle.read(upToCount: chunkSize),
+              !chunk.isEmpty
+        else {
+            closeFileAndConnection(fileHandle: fileHandle)
+            return
+        }
+        let newRemaining = remaining - UInt64(chunk.count)
+        connection.send(content: chunk, completion: .contentProcessed { error in
+            if error != nil {
+                self.closeFileAndConnection(fileHandle: fileHandle)
+                return
+            }
+            self.sendFileChunk(fileHandle: fileHandle, remaining: newRemaining)
+        })
+    }
+
+    private func closeFileAndConnection(fileHandle: FileHandle) {
+        fileHandle.closeFile()
+        connection.cancel()
+    }
+
+    private func sendAndClose(data: Data) {
+        connection.send(content: data, completion: .contentProcessed { _ in
+            self.connection.cancel()
+        })
+    }
+}
+
+private func appendExtraHeaders(headers: [SettingsHttpHeader], lines: inout [String]) {
+    for header in headers {
+        lines.append("\(header.name): \(header.value)")
+    }
+}
+
+private func appendCloseHeaderAndFinalize(lines: inout [String]) -> Data {
+    lines.append("Connection: close")
+    lines.append("")
+    lines.append("")
+    return lines.joined(separator: "\r\n").utf8Data
+}
+
+class HttpServerRoute {
+    let path: String
+    let prefixMatch: Bool
+    let handler: (HttpServerRequest, HttpServerResponse) -> Void
+
+    init(path: String,
+         prefixMatch: Bool = false,
+         handler: @escaping (HttpServerRequest, HttpServerResponse) -> Void)
+    {
+        self.path = path
+        self.prefixMatch = prefixMatch
+        self.handler = handler
+    }
+
+    func matches(path: String) -> Bool {
+        if prefixMatch {
+            path.hasPrefix(self.path)
+        } else {
+            path == self.path
+        }
+    }
+}
+
+class HttpServer: @unchecked Sendable {
+    private let queue: DispatchQueue
+    private let routes: [HttpServerRoute]
+    private var listener: NWListener?
+    private let retryTimer: SimpleTimer
+    private var port: NWEndpoint.Port = .http
+    private let service: NWListener.Service?
+    private var started: Bool = false
+
+    init(queue: DispatchQueue, routes: [HttpServerRoute], service: NWListener.Service? = nil) {
+        self.queue = queue
+        self.routes = routes
+        self.service = service
+        retryTimer = SimpleTimer(queue: queue)
+    }
+
+    func start(port: NWEndpoint.Port) {
+        logger.debug("http-server: Start")
+        queue.async {
+            self.startInternal(port: port)
+        }
+    }
+
+    func stop() {
+        logger.debug("http-server: Stop")
+        queue.async {
+            self.stopInternal()
+        }
+    }
+
+    private func startInternal(port: NWEndpoint.Port) {
+        self.port = port
+        started = true
+        setupListener()
+    }
+
+    private func stopInternal() {
+        started = false
+        retryTimer.stop()
+        listener?.cancel()
+        listener = nil
+    }
+
+    private func setupListener() {
+        listener = try? NWListener(using: .tcp, on: port)
+        listener?.service = service
+        listener?.stateUpdateHandler = handleStateUpdate
+        listener?.newConnectionHandler = handleNewConnection
+        listener?.start(queue: queue)
+    }
+
+    private func handleStateUpdate(_ newState: NWListener.State) {
+        switch newState {
+        case .failed:
+            retryTimer.startSingleShot(timeout: 1) { [weak self] in
+                guard let self, started else {
+                    return
+                }
+                setupListener()
+            }
+        default:
+            break
+        }
+    }
+
+    private func handleNewConnection(_ connection: NWConnection) {
+        connection.stateUpdateHandler = { state in
+            switch state {
+            case .failed:
+                connection.cancel()
+            default:
+                break
+            }
+        }
+        connection.start(queue: queue)
+        let connection = HttpServerConnection(connection: connection, server: self)
+        connection.receiveData()
+    }
+
+    fileprivate func findRoute(request: HttpServerRequest) -> HttpServerRoute? {
+        routes.first(where: { $0.matches(path: request.path) })
+    }
+}

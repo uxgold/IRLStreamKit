@@ -1,0 +1,165 @@
+import AVFoundation
+import Collections
+
+class BufferedVideo {
+    private var sampleBuffers: Deque<CMSampleBuffer> = []
+    private var currentSampleBuffer: CMSampleBuffer?
+    private var isInitialBuffering = true
+    private var cameraId: UUID
+    private let name: String
+    private let update: Bool
+    private weak var processor: Processor?
+    private let driftTracker: DriftTracker
+    private let trackDrift: Bool
+    private var hasBufferBeenAppended = false
+    private var stats = BufferedStats()
+    let latency: Double
+
+    init(
+        cameraId: UUID,
+        name: String,
+        update: Bool,
+        latency: Double,
+        processor: Processor?,
+        trackDrift: Bool = true
+    ) {
+        self.cameraId = cameraId
+        self.name = name
+        self.update = update
+        self.latency = latency
+        self.processor = processor
+        self.trackDrift = trackDrift
+        driftTracker = DriftTracker(media: "video", name: name, targetFillLevel: latency)
+    }
+
+    deinit {
+        processor?.delegate.streamVideoBufferedVideoRemoved(cameraId: cameraId)
+    }
+
+    func setTargetLatency(latency: Double) {
+        driftTracker.setTargetFillLevel(targetFillLevel: latency)
+    }
+
+    func appendSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
+        hasBufferBeenAppended = true
+        if let index = sampleBuffers
+            .lastIndex(where: { $0.presentationTimeStamp < sampleBuffer.presentationTimeStamp })
+        {
+            sampleBuffers.insert(sampleBuffer, at: sampleBuffers.index(after: index))
+        } else {
+            sampleBuffers.prepend(sampleBuffer)
+        }
+    }
+
+    func updateSampleBuffer(_ outputPresentationTimeStamp: Double, _ forceUpdate: Bool = false) {
+        guard update || forceUpdate else {
+            return
+        }
+        var sampleBuffer: CMSampleBuffer?
+        var numberOfBuffersConsumed = 0
+        let drift = driftTracker.getDrift()
+        while let nextSampleBuffer = sampleBuffers.first {
+            if sampleBuffers.count > 200 {
+                sampleBuffer = nextSampleBuffer
+                consumeBuffer(numberOfBuffersConsumed: &numberOfBuffersConsumed)
+                continue
+            }
+            if hasBestBuffer(nextSampleBuffer, sampleBuffer, outputPresentationTimeStamp, drift) {
+                break
+            }
+            sampleBuffer = nextSampleBuffer
+            consumeBuffer(numberOfBuffersConsumed: &numberOfBuffersConsumed)
+            markInitialBufferingComplete()
+        }
+        if !isInitialBuffering {
+            updateStatsAndLog(outputPresentationTimeStamp,
+                              sampleBuffer,
+                              drift,
+                              numberOfBuffersConsumed)
+        }
+        if sampleBuffer != nil {
+            currentSampleBuffer = sampleBuffer
+        }
+        if !isInitialBuffering, hasBufferBeenAppended, update {
+            hasBufferBeenAppended = false
+            if trackDrift, let drift = driftTracker.update(outputPresentationTimeStamp, sampleBuffers) {
+                processor?.setBufferedAudioDrift(cameraId: cameraId, drift: drift)
+            }
+        }
+    }
+
+    private func consumeBuffer(numberOfBuffersConsumed: inout Int) {
+        sampleBuffers.removeFirst()
+        numberOfBuffersConsumed += 1
+    }
+
+    private func updateStatsAndLog(_ outputPresentationTimeStamp: Double,
+                                   _: CMSampleBuffer?,
+                                   _ drift: Double,
+                                   _ numberOfBuffersConsumed: Int)
+    {
+        if numberOfBuffersConsumed == 0 {
+            stats.incrementDuplicated()
+        } else if numberOfBuffersConsumed > 1 {
+            stats.incrementDropped(count: numberOfBuffersConsumed - 1)
+        }
+        if logger.debugEnabled, let (duplicated, dropped) = stats.getStats(outputPresentationTimeStamp) {
+            let lastPresentationTimeStamp = sampleBuffers.last?.presentationTimeStamp.seconds ?? 0.0
+            let firstPresentationTimeStamp = sampleBuffers.first?.presentationTimeStamp.seconds ?? 0.0
+            let fillLevel = lastPresentationTimeStamp - firstPresentationTimeStamp
+            logger.debug("""
+            buffered-video: \(name): \(duplicated) duplicated and \(dropped) dropped buffers. \
+            Output \(formatThreeDecimals(outputPresentationTimeStamp)), \
+            Current \(formatThreeDecimals(currentSampleBuffer?.presentationTimeStamp.seconds ?? 0.0)), \
+            \(formatThreeDecimals(firstPresentationTimeStamp + drift))..\
+            \(formatThreeDecimals(lastPresentationTimeStamp + drift)) \
+            (\(formatThreeDecimals(fillLevel))), \
+            Buffers \(sampleBuffers.count)
+            """)
+        }
+    }
+
+    // Break on first frame that is ahead in time.
+    private func hasBestBuffer(_ nextSampleBuffer: CMSampleBuffer,
+                               _ candidateSampleBuffer: CMSampleBuffer?,
+                               _ outputPresentationTimeStamp: Double,
+                               _ drift: Double) -> Bool
+    {
+        let nextPresentationTimeStamp = nextSampleBuffer.presentationTimeStamp.seconds + drift
+        let delta = nextPresentationTimeStamp - outputPresentationTimeStamp
+        guard delta > 0 else {
+            return false
+        }
+        if candidateSampleBuffer != nil || abs(delta) > 0.01 {
+            return true
+        }
+        return false
+    }
+
+    private func markInitialBufferingComplete() {
+        if isInitialBuffering {
+            processor?.delegate.streamVideoBufferedVideoReady(cameraId: cameraId)
+        }
+        isInitialBuffering = false
+    }
+
+    func setLatestSampleBuffer(_ sampleBuffer: CMSampleBuffer?) {
+        currentSampleBuffer = sampleBuffer
+    }
+
+    func getLatestSampleBuffer() -> CMSampleBuffer? {
+        currentSampleBuffer
+    }
+
+    func getSampleBuffer(_ presentationTimeStamp: CMTime) -> CMSampleBuffer? {
+        currentSampleBuffer?.replacePresentationTimeStamp(presentationTimeStamp)
+    }
+
+    func numberOfBuffers() -> Int {
+        sampleBuffers.count
+    }
+
+    func setDrift(drift: Double) {
+        driftTracker.setDrift(drift: drift)
+    }
+}
