@@ -89,4 +89,33 @@ struct MappingTests {
         )
         #expect(ConfigurationValidator.validate(goodConfig) == nil)
     }
+
+    @Test func validatorRejectsMismatchedSrtlaSchemeInPlainSrt() {
+        // srtla:// in the plain .srt case is a mismatched intent; the reverse
+        // (srt:// in .srtla) is fine — bonded endpoints publish both schemes.
+        let mismatched = StreamConfiguration(
+            endpoint: .srt(url: URL(string: "srtla://example.com:5000")!)
+        )
+        #expect(ConfigurationValidator.validate(mismatched) == .unsupportedScheme("srtla"))
+
+        let bondedWithSrtScheme = StreamConfiguration(
+            endpoint: .srtla(url: URL(string: "srtla://example.com:5000")!)
+        )
+        #expect(ConfigurationValidator.validate(bondedWithSrtScheme) == nil)
+    }
+
+    @Test func validatorRejectsBadFrameRateAndAudioBitrate() {
+        // A negative frame rate would trap in the vendored frame timer.
+        let negativeFps = StreamConfiguration(
+            endpoint: .srtla(url: URL(string: "srt://example.com:5000")!),
+            video: VideoConfiguration(frameRate: -1)
+        )
+        #expect(ConfigurationValidator.validate(negativeFps) == .frameRateOutOfRange(-1))
+
+        let zeroAudio = StreamConfiguration(
+            endpoint: .srtla(url: URL(string: "srt://example.com:5000")!),
+            audio: AudioConfiguration(bitrate: 0)
+        )
+        #expect(ConfigurationValidator.validate(zeroAudio) == .audioBitrateOutOfRange(0))
+    }
 }

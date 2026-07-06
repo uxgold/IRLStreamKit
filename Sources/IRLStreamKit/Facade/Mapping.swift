@@ -115,9 +115,18 @@ enum Mapping {
 enum ConfigurationValidator {
     static func validate(_ configuration: StreamConfiguration) -> StreamConfigurationError? {
         switch configuration.endpoint {
-        case let .srtla(url, _), let .srt(url, _):
+        case let .srtla(url, _):
+            // Bonded endpoints are published as srtla:// or plain srt://.
             guard let scheme = url.scheme?.lowercased(), scheme == "srt" || scheme == "srtla" else {
-                return .unsupportedScheme(configuration.endpoint.urlForValidation.scheme ?? "")
+                return .unsupportedScheme(url.scheme ?? "")
+            }
+            guard url.host() != nil else {
+                return .invalidURL(url.absoluteString)
+            }
+        case let .srt(url, _):
+            // A srtla:// URL in the plain-SRT case is a mismatched intent.
+            guard let scheme = url.scheme?.lowercased(), scheme == "srt" else {
+                return .unsupportedScheme(url.scheme ?? "")
             }
             guard url.host() != nil else {
                 return .invalidURL(url.absoluteString)
@@ -132,6 +141,14 @@ enum ConfigurationValidator {
         }
         guard (100_000 ... 50_000_000).contains(configuration.video.targetBitrate) else {
             return .bitrateOutOfRange(configuration.video.targetBitrate)
+        }
+        // frameRate <= 0 traps in the vendored frame timer (negative repeating
+        // DispatchSourceTimer interval); bound it here.
+        guard (1 ... 120).contains(configuration.video.frameRate) else {
+            return .frameRateOutOfRange(configuration.video.frameRate)
+        }
+        guard (8_000 ... 512_000).contains(configuration.audio.bitrate) else {
+            return .audioBitrateOutOfRange(configuration.audio.bitrate)
         }
         return nil
     }

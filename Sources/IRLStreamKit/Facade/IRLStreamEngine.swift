@@ -13,6 +13,7 @@ public final class IRLStreamEngine: StreamEngine {
     public private(set) var state = StreamEngineState()
 
     @ObservationIgnored private var media: Media!
+    @ObservationIgnored private let adapter: MediaDelegateAdapter
     @ObservationIgnored private let broadcaster = EventBroadcaster()
     @ObservationIgnored private let cameraController = CameraController()
     @ObservationIgnored private let ticker = EngineTicker()
@@ -20,21 +21,31 @@ public final class IRLStreamEngine: StreamEngine {
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var activeConfiguration: StreamConfiguration?
     @ObservationIgnored private var currentDevice: AVCaptureDevice?
+    @ObservationIgnored private var streamGeneration = 0
+    @ObservationIgnored private var isStartingSession = false
+    // The user's intended mute. Media loses mute state whenever setNetStream
+    // rebuilds the Processor (AudioUnit.muted defaults to false), so the
+    // facade re-applies it after every rebuild — mirrors Moblin's
+    // ModelStream.setNetStream -> updateMute(). Prevents a hot mic on go-live.
+    @ObservationIgnored private var desiredMicMuted = false
+    // streamTotal() resets on every (re)connect; accumulate across reconnects.
+    @ObservationIgnored private var totalBytesBase: Int64 = 0
     @ObservationIgnored let internalPreviewView: PreviewView
 
     public init() {
         internalPreviewView = PreviewView(frame: .zero)
         internalPreviewView.videoGravity = .resizeAspectFill
-        let (stream, continuation) = AsyncStream.makeStream(of: EngineSignal.self)
+        let (stream, continuation) = AsyncStream.makeStream(of: StampedSignal.self)
         // Media retains its delegate strongly; the adapter must not retain the
         // engine (it only holds the stream continuation).
-        media = Media(delegate: MediaDelegateAdapter(signals: continuation))
+        adapter = MediaDelegateAdapter(signals: continuation)
+        media = Media(delegate: adapter)
         signalTask = Task { [weak self] in
-            for await signal in stream {
+            for await stamped in stream {
                 guard let self else {
                     return
                 }
-                self.handle(signal)
+                self.handle(stamped)
             }
         }
         ticker.onAbrTick = { [weak self] in self?.abrTick() }
@@ -45,6 +56,18 @@ public final class IRLStreamEngine: StreamEngine {
     deinit {
         signalTask?.cancel()
         reconnectTask?.cancel()
+        // Media <-> Processor retain each other strongly; without this the
+        // capture session (and a live stream) would keep running with no
+        // remaining handle after the engine is deallocated.
+        let media: Media = media
+        let ticker = ticker
+        let broadcaster = broadcaster
+        Task { @MainActor in
+            ticker.stop()
+            media.getProcessor()?.stop()
+            media.stopAllNetStreams()
+            broadcaster.finish()
+        }
     }
 
     // MARK: - StreamEngine
@@ -54,9 +77,15 @@ public final class IRLStreamEngine: StreamEngine {
     }
 
     public func startSession(camera: CameraSelection) async throws(StreamEngineError) {
-        guard case .idle = state.phase else {
-            return // idempotent
+        guard case .idle = state.phase, !isStartingSession else {
+            // Idempotent — but honor a camera switch while previewing.
+            if case .previewing = state.phase, camera != state.camera {
+                setCamera(camera)
+            }
+            return
         }
+        isStartingSession = true
+        defer { isStartingSession = false }
         if let permissionError = await CameraController.requestPermissions() {
             throw permissionError
         }
@@ -71,9 +100,15 @@ public final class IRLStreamEngine: StreamEngine {
     }
 
     public func stopSession() {
-        guard case .previewing = state.phase else {
-            return // no-op while idle or live
+        switch state.phase {
+        case .connecting:
+            endStream() // tear the pending connection down first
+        case .previewing:
+            break
+        case .idle, .live, .reconnecting:
+            return
         }
+        streamGeneration = adapter.bumpGeneration()
         media.attachCamera(params: cameraController.detachParams())
         media.stopAllNetStreams()
         currentDevice = nil
@@ -96,6 +131,8 @@ public final class IRLStreamEngine: StreamEngine {
             throw StreamEngineError.cameraUnavailable
         }
         activeConfiguration = configuration
+        streamGeneration = adapter.bumpGeneration()
+        totalBytesBase = 0
         // setNetStream rebuilds the capture graph (fresh Processor), so the
         // encoder settings and camera attach must be re-applied after it.
         configureNetStream(endpoint: configuration.endpoint, video: configuration.video)
@@ -118,6 +155,7 @@ public final class IRLStreamEngine: StreamEngine {
         reconnectTask = nil
         ticker.stop()
         stopNetworkStream()
+        streamGeneration = adapter.bumpGeneration()
         activeConfiguration = nil
         apply(.phaseChanged(.previewing))
     }
@@ -136,12 +174,13 @@ public final class IRLStreamEngine: StreamEngine {
     }
 
     public func setMicMuted(_ muted: Bool) {
+        desiredMicMuted = muted
         // State is confirmed via mediaOnAudioMuteChange, not set optimistically.
         media.setMute(on: muted)
     }
 
     public func setTargetBitrate(_ bitsPerSecond: Int) {
-        media.setVideoStreamBitrate(bitrate: UInt32(max(0, bitsPerSecond)))
+        media.setVideoStreamBitrate(bitrate: UInt32(clamping: max(0, bitsPerSecond)))
         var stats = state.stats
         stats.targetBitrate = bitsPerSecond
         apply(.statsUpdated(stats))
@@ -149,8 +188,20 @@ public final class IRLStreamEngine: StreamEngine {
 
     // MARK: - Signal handling (single consumer preserves callback ordering)
 
-    private func handle(_ signal: EngineSignal) {
-        switch signal {
+    private func handle(_ stamped: StampedSignal) {
+        // Connection signals from an earlier stream generation belong to a
+        // stream that was already stopped; applying them would corrupt the
+        // phase machine of the current one.
+        switch stamped.signal {
+        case .connected, .disconnected, .mediaError:
+            guard stamped.generation == streamGeneration else {
+                return
+            }
+        case .audioMuteChanged, .attachCameraError, .captureSessionError,
+             .encoderResolutionChanged, .fps:
+            break
+        }
+        switch stamped.signal {
         case .connected:
             switch state.phase {
             case .connecting, .reconnecting:
@@ -198,7 +249,9 @@ public final class IRLStreamEngine: StreamEngine {
             guard let self, case .reconnecting = self.state.phase else {
                 return
             }
+            self.totalBytesBase += self.media.streamTotal()
             self.stopNetworkStream()
+            self.streamGeneration = self.adapter.bumpGeneration()
             self.startNetworkStream(configuration)
         }
     }
@@ -224,8 +277,11 @@ public final class IRLStreamEngine: StreamEngine {
             srtImplementation: .moblin, // upstream default implementation
             limitAdaptiveBitrateByTransportBitrate: true // upstream: rateControl != .cbr
         )
-        // setNetStream created a fresh Processor: rebind the preview drawable
-        // and start it (mirrors ModelStream.attachStream).
+        // The fresh Processor lost the mute flag (AudioUnit.muted defaults to
+        // false) — re-apply the user's intent, mirroring Moblin's updateMute().
+        media.setMute(on: desiredMicMuted)
+        // Rebind the preview drawable and start the new Processor (mirrors
+        // ModelStream.attachStream).
         if let processor = media.getProcessor() {
             let previewView = internalPreviewView
             processorControlQueue.async {
@@ -249,7 +305,7 @@ public final class IRLStreamEngine: StreamEngine {
         media.setVideoProfile(profile: Mapping.videoProfile(video.codec))
         media.setAllowFrameReordering(value: false) // upstream: bFrames off by default
         media.setStreamKeyFrameInterval(seconds: 2) // upstream: maxKeyFrameInterval default
-        media.setVideoStreamBitrate(bitrate: UInt32(video.targetBitrate))
+        media.setVideoStreamBitrate(bitrate: UInt32(clamping: video.targetBitrate))
         media.setAudioStreamBitrate(bitrate: configuration.audio.bitrate)
         media.setAudioStreamFormat(format: .aac)
     }
@@ -258,16 +314,13 @@ public final class IRLStreamEngine: StreamEngine {
         switch configuration.endpoint {
         case let .srtla(url, options), let .srt(url, options):
             let isSrtla = if case .srtla = configuration.endpoint { true } else { false }
-            if let settings = Mapping.adaptiveBitrateSettings(options.adaptiveBitrate) {
-                media.setAdaptiveBitrateSettings(settings: settings)
-            }
             media.srtStartStream(
                 isSrtla: isSrtla,
                 url: url.absoluteString,
                 reconnectTime: options.reconnectDelaySeconds,
-                targetBitrate: UInt32(configuration.video.targetBitrate),
+                targetBitrate: UInt32(clamping: configuration.video.targetBitrate),
                 adaptiveBitrateAlgorithm: Mapping.toSettings(options.adaptiveBitrate),
-                latency: Int32(options.latencyMilliseconds),
+                latency: Int32(clamping: options.latencyMilliseconds),
                 experimental: false, // upstream: debug flag
                 overheadBandwidth: 25, // upstream: SettingsStreamSrt default
                 maximumBandwidthFollowInput: true, // upstream: SettingsStreamSrt default
@@ -277,10 +330,16 @@ public final class IRLStreamEngine: StreamEngine {
                 connectionPriorities: Mapping.toSettings(options.bondingPriorities),
                 dnsLookupStrategy: .system // upstream: SettingsStreamSrt default
             )
+            // Must come AFTER srtStartStream: the AdaptiveBitrate object is
+            // created inside it, and setAdaptiveBitrateSettings is a no-op on
+            // nil (mirrors Moblin: srtStartStream then updateAdaptiveBitrateSrt).
+            if let settings = Mapping.adaptiveBitrateSettings(options.adaptiveBitrate) {
+                media.setAdaptiveBitrateSettings(settings: settings)
+            }
         case let .rtmp(url):
             media.rtmpStartStream(
                 url: url.absoluteString,
-                targetBitrate: UInt32(configuration.video.targetBitrate),
+                targetBitrate: UInt32(clamping: configuration.video.targetBitrate),
                 adaptiveBitrate: false // RTMP ABR is upstream-experimental; phase 2
             )
         }
@@ -318,8 +377,8 @@ public final class IRLStreamEngine: StreamEngine {
         media.updateSrtTransportBitrate()
         var stats = state.stats
         stats.transportBitrate = Int(media.streamTransportBitrate() ?? 0)
-        stats.totalBytesSent = media.streamTotal()
-        stats.currentBitrate = Int(media.getVideoStreamBitrate(bitrate: UInt32(max(0, stats.targetBitrate))))
+        stats.totalBytesSent = totalBytesBase + media.streamTotal()
+        stats.currentBitrate = Int(media.getVideoStreamBitrate(bitrate: UInt32(clamping: max(0, stats.targetBitrate))))
         if stats != state.stats {
             apply(.statsUpdated(stats))
         }

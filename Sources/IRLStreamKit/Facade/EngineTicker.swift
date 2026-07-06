@@ -15,6 +15,14 @@ final class EngineTicker {
     var onAudioTick: (() -> Void)?
     var onStatsTick: (() -> Void)?
 
+    deinit {
+        // The loop tasks hold the ticker weakly; without this they would spin
+        // (a 20 ms wakeup) for the rest of the process after deallocation.
+        abrTask?.cancel()
+        audioTask?.cancel()
+        statsTask?.cancel()
+    }
+
     func start() {
         stop()
         abrTask = makeLoop(milliseconds: 20) { [weak self] in self?.onAbrTick?() }

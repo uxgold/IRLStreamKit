@@ -44,16 +44,19 @@ final class CameraController {
     func attachParams(device: AVCaptureDevice) -> VideoUnitAttachParams {
         VideoUnitAttachParams(
             devices: CaptureDevices(hasSceneDevice: true,
-                                    devices: [CaptureDevice(device: device,
-                                                            id: cameraId(for: device),
-                                                            isVideoMirrored: false)]),
+                                    devices: [CaptureDevice(
+                                        device: device,
+                                        id: cameraId(for: device),
+                                        // upstream: mirrorFrontCameraOnStream default true
+                                        isVideoMirrored: device.position == .front
+                                    )]),
             builtinDelay: 0, // upstream: database.debug.builtinAudioAndVideoDelay default
             cameraPreviewLayer: cameraPreviewLayer,
             showCameraPreview: false, // facade uses the processed drawable preview
             externalDisplayPreview: false,
             bufferedVideo: nil,
             preferredVideoStabilizationMode: .off, // upstream scene default
-            ignoreFramesAfterAttachSeconds: 0.0,
+            ignoreFramesAfterAttachSeconds: 0.3, // upstream: cameraSwitchRemoveBlackish default
             fillFrame: false,
             isLandscapeStreamAndPortraitUi: false,
             forceSceneTransition: false,

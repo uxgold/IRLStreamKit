@@ -13,6 +13,8 @@ public enum StreamConfigurationError: Error, Equatable, Sendable {
     case invalidURL(String)
     case unsupportedScheme(String)
     case bitrateOutOfRange(Int)
+    case frameRateOutOfRange(Int)
+    case audioBitrateOutOfRange(Int)
 }
 
 public enum StreamEngineError: Error, Equatable, Sendable {
@@ -260,9 +262,11 @@ public protocol StreamEngine: AnyObject {
 
     // Session lifecycle (preview-before-live; endStream keeps preview alive)
     /// Requests camera+mic permission, attaches the camera, begins rendering
-    /// into any bound preview view. Idempotent.
+    /// into any bound preview view. Idempotent; while previewing with a
+    /// different camera it switches cameras instead.
     func startSession(camera: CameraSelection) async throws(StreamEngineError)
-    /// Tears down capture. No-op while `state.phase.isLive`.
+    /// Tears down capture. Ends the stream first when still connecting.
+    /// No-op while live or reconnecting — call endStream() first.
     func stopSession()
 
     // Streaming lifecycle

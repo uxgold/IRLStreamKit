@@ -9,7 +9,10 @@ package final class EventBroadcaster {
     package init() {}
 
     package func subscribe() -> AsyncStream<StreamEvent> {
-        AsyncStream { continuation in
+        // Bounded: a subscriber that stops consuming drops its oldest events
+        // instead of growing memory for the whole stream duration. Events are
+        // notifications, not the source of truth — `state` is.
+        AsyncStream(bufferingPolicy: .bufferingNewest(256)) { continuation in
             let id = UUID()
             continuations[id] = continuation
             continuation.onTermination = { _ in

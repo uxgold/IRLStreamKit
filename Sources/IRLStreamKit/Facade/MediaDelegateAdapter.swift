@@ -7,6 +7,7 @@
 
 import CoreMedia
 import Foundation
+import os
 
 /// Internal signals produced by MediaDelegate callbacks, ordered as received.
 enum EngineSignal {
@@ -20,27 +21,50 @@ enum EngineSignal {
     case mediaError(String)
 }
 
-final class MediaDelegateAdapter: MediaDelegate {
-    private let signals: AsyncStream<EngineSignal>.Continuation
+/// A signal stamped with the stream generation current when it was produced.
+/// The engine bumps the generation on every stream transition and drops
+/// connection signals from earlier generations (they belong to a stream that
+/// has already been stopped).
+struct StampedSignal {
+    let generation: Int
+    let signal: EngineSignal
+}
 
-    init(signals: AsyncStream<EngineSignal>.Continuation) {
+final class MediaDelegateAdapter: MediaDelegate {
+    private let signals: AsyncStream<StampedSignal>.Continuation
+    private let generation = OSAllocatedUnfairLock(initialState: 0)
+
+    init(signals: AsyncStream<StampedSignal>.Continuation) {
         self.signals = signals
     }
 
+    /// Called by the engine on goLive/endStream/stopSession; returns the new
+    /// generation so the engine can filter stale connection signals.
+    func bumpGeneration() -> Int {
+        generation.withLock { value in
+            value += 1
+            return value
+        }
+    }
+
+    private func yield(_ signal: EngineSignal) {
+        signals.yield(StampedSignal(generation: generation.withLock { $0 }, signal: signal))
+    }
+
     func mediaOnSrtConnected() {
-        signals.yield(.connected)
+        yield(.connected)
     }
 
     func mediaOnSrtDisconnected(_ reason: String) {
-        signals.yield(.disconnected(reason: reason))
+        yield(.disconnected(reason: reason))
     }
 
     func mediaOnRtmpConnected() {
-        signals.yield(.connected)
+        yield(.connected)
     }
 
     func mediaOnRtmpDisconnected(_ message: String) {
-        signals.yield(.disconnected(reason: message))
+        yield(.disconnected(reason: message))
     }
 
     func mediaOnRtmpDestinationConnected(_: String) {}
@@ -48,19 +72,19 @@ final class MediaDelegateAdapter: MediaDelegate {
     func mediaOnRtmpDestinationDisconnected(_: String) {}
 
     func mediaOnRistConnected() {
-        signals.yield(.connected)
+        yield(.connected)
     }
 
     func mediaOnRistDisconnected() {
-        signals.yield(.disconnected(reason: ""))
+        yield(.disconnected(reason: ""))
     }
 
     func mediaOnWhipConnected() {
-        signals.yield(.connected)
+        yield(.connected)
     }
 
     func mediaOnWhipDisconnected(_ reason: String) {
-        signals.yield(.disconnected(reason: reason))
+        yield(.disconnected(reason: reason))
     }
 
     func mediaOnWhipPerform(request: URLRequest,
@@ -75,7 +99,7 @@ final class MediaDelegateAdapter: MediaDelegate {
     }
 
     func mediaOnAudioMuteChange() {
-        signals.yield(.audioMuteChanged)
+        yield(.audioMuteChanged)
     }
 
     func mediaOnAudioBuffer(_: CMSampleBuffer) {}
@@ -83,11 +107,11 @@ final class MediaDelegateAdapter: MediaDelegate {
     func mediaOnLowFpsImage(_: Data?, _: UInt64) {}
 
     func mediaOnAttachCameraError() {
-        signals.yield(.attachCameraError)
+        yield(.attachCameraError)
     }
 
     func mediaOnCaptureSessionError(_ message: String) {
-        signals.yield(.captureSessionError(message))
+        yield(.captureSessionError(message))
     }
 
     func mediaOnBufferedVideoReady(cameraId _: UUID) {}
@@ -95,7 +119,7 @@ final class MediaDelegateAdapter: MediaDelegate {
     func mediaOnBufferedVideoRemoved(cameraId _: UUID) {}
 
     func mediaOnEncoderResolutionChanged(resolution: CGSize) {
-        signals.yield(.encoderResolutionChanged(resolution))
+        yield(.encoderResolutionChanged(resolution))
     }
 
     func mediaOnRecorderInitSegment(data _: Data) {}
@@ -107,7 +131,7 @@ final class MediaDelegateAdapter: MediaDelegate {
     func mediaOnNoTorch() {}
 
     func mediaOnFps(fps: Int) {
-        signals.yield(.fps(fps))
+        yield(.fps(fps))
     }
 
     func mediaStrlaRelayDestinationAddress(address _: String, port _: UInt16) {}
@@ -119,6 +143,6 @@ final class MediaDelegateAdapter: MediaDelegate {
     func mediaSelectedFps(auto _: Bool) {}
 
     func mediaError(error: any Error) {
-        signals.yield(.mediaError(error.localizedDescription))
+        yield(.mediaError(error.localizedDescription))
     }
 }

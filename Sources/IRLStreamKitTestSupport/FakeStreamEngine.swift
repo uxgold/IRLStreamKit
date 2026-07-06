@@ -1,6 +1,7 @@
 // Shipped fake for consumer TDD — view models import this instead of
 // hand-rolling fakes. It applies the SAME package reducer as the production
-// engine, so fake and real cannot diverge on state derivation.
+// engine and enforces the same phase machine, so fake and real cannot
+// diverge on state derivation or lifecycle contract.
 
 import Foundation
 import IRLStreamKit
@@ -44,6 +45,14 @@ public final class FakeStreamEngine: StreamEngine {
 
     public func startSession(camera: CameraSelection) async throws(StreamEngineError) {
         commands.append(.startSession(camera))
+        guard case .idle = state.phase else {
+            // Same contract as the real engine: idempotent, but honors a
+            // camera switch while previewing.
+            if case .previewing = state.phase, camera != state.camera {
+                emit(.cameraChanged(camera))
+            }
+            return
+        }
         if case let .failure(error) = startSessionResult {
             throw error
         }
@@ -53,24 +62,51 @@ public final class FakeStreamEngine: StreamEngine {
 
     public func stopSession() {
         commands.append(.stopSession)
+        switch state.phase {
+        case .connecting:
+            emit(.phaseChanged(.previewing)) // endStream, as the real engine does
+        case .previewing:
+            break
+        case .idle, .live, .reconnecting:
+            return // no-op, same contract as the real engine
+        }
         emit(.phaseChanged(.idle))
     }
 
     public func goLive(_ configuration: StreamConfiguration) async throws(StreamEngineError) {
         commands.append(.goLive(configuration))
+        switch state.phase {
+        case .previewing:
+            break
+        case .idle:
+            throw StreamEngineError.notInSession
+        case .connecting, .live, .reconnecting:
+            throw StreamEngineError.alreadyLive
+        }
         if case let .failure(error) = goLiveResult {
             throw error
         }
+        // Same emission order as the real engine: stats first, then phase.
+        var stats = StreamStatistics()
+        stats.targetBitrate = configuration.video.targetBitrate
+        stats.currentBitrate = configuration.video.targetBitrate
+        emit(.statsUpdated(stats))
         emit(.phaseChanged(.connecting))
     }
 
     public func endStream() {
         commands.append(.endStream)
+        guard state.phase.isLive || state.phase == .connecting else {
+            return
+        }
         emit(.phaseChanged(.previewing))
     }
 
     public func setCamera(_ camera: CameraSelection) {
         commands.append(.setCamera(camera))
+        guard camera != state.camera else {
+            return
+        }
         emit(.cameraChanged(camera))
     }
 
