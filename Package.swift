@@ -4,10 +4,11 @@ import PackageDescription
 let package = Package(
     name: "IRLStreamKit",
     platforms: [
-        .iOS("16.4"),
+        .iOS(.v17),
     ],
     products: [
         .library(name: "IRLStreamKit", targets: ["IRLStreamKit"]),
+        .library(name: "IRLStreamKitTestSupport", targets: ["IRLStreamKitTestSupport"]),
     ],
     dependencies: [
         // Pinned to the exact revisions Moblin resolves (upstream tracks main branches).
@@ -32,6 +33,14 @@ let package = Package(
             swiftSettings: [
                 .enableUpcomingFeature("BareSlashRegexLiterals"),
             ]
+        ),
+        .target(
+            name: "IRLStreamKitTestSupport",
+            dependencies: ["IRLStreamKit"]
+        ),
+        .testTarget(
+            name: "IRLStreamKitTests",
+            dependencies: ["IRLStreamKit", "IRLStreamKitTestSupport"]
         ),
     ]
 )

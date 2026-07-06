@@ -12,18 +12,41 @@ for the engine internals belongs to Erik Moqvist and the Moblin contributors.
 
 ## Status
 
-- Compiles standalone for iOS (deployment target 16.4, Xcode 26 SDK).
+- Compiles standalone for iOS (deployment target 17.0, Xcode 26 SDK); unit
+  tests pass on the iOS simulator.
 - `Vendor/` mirrors upstream byte-identically; `Shim/` holds the small set of
   app-layer types the engine references, extracted verbatim.
-- No public API surface yet: everything is internal. The next step is a public
-  facade (adapting upstream's `Media` class + `MediaDelegate` seam from
-  `Moblin/Various/Media.swift`) — designed to live here, with app-specific
-  adaptation in the consuming app.
+- Public facade in `Facade/`: a `StreamEngine` protocol (value-type state,
+  events, typed errors — no vendor/UIKit types), the production
+  `IRLStreamEngine`, and a SwiftUI `CameraPreviewView`. A second product,
+  `IRLStreamKitTestSupport`, ships `FakeStreamEngine` for consumer TDD; fake
+  and real engine share one package-internal state reducer so they cannot
+  diverge.
+- Containment rule: no vendored identifier may appear in a public/package
+  declaration — upstream churn is absorbed by `Facade/MediaDelegateAdapter.swift`
+  and `Facade/Mapping.swift` only. `scripts/check-containment.sh` enforces it.
 
-## Build
+## Usage sketch
+
+```swift
+import IRLStreamKit
+
+let engine = IRLStreamEngine()          // hold one, app-lifetime
+try await engine.startSession(camera: .back)   // preview
+try await engine.goLive(StreamConfiguration(
+    endpoint: .srtla(url: bondedIngestURL),
+    video: VideoConfiguration(resolution: .fhd1080p, targetBitrate: 6_000_000)
+))
+// engine.state.phase / .stats / .bondingLinks drive the UI (@Observable);
+// engine.events() feeds toasts/haptics/logging.
+```
+
+## Build & test
 
 ```sh
 xcodebuild -scheme IRLStreamKit -destination 'generic/platform=iOS' build
+xcodebuild test -scheme IRLStreamKit-Package -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+scripts/check-containment.sh
 ```
 
 ## Layout
@@ -32,6 +55,10 @@ xcodebuild -scheme IRLStreamKit -destination 'generic/platform=iOS' build
 Sources/IRLStreamKit/
   Vendor/    # byte-identical mirrors of upstream Moblin files — do not edit
   Shim/      # verbatim blocks extracted from app-entangled upstream files
+  Facade/    # the public API — the only surface consumers see
+Sources/IRLStreamKitTestSupport/  # FakeStreamEngine for consumer TDD
+Tests/IRLStreamKitTests/
 scripts/
-  sync-upstream.sh  # drift report / pull against upstream main
+  sync-upstream.sh       # drift report / pull against upstream main
+  check-containment.sh   # public surface must not leak vendored types
 ```
