@@ -3,12 +3,234 @@
 // so sync diffs can detect drift.
 // Origin repo: https://github.com/eerimoq/moblin
 
+import CoreMedia
 import Foundation
 
 // Origin: Moblin/Various/Settings/Settings.swift
 let defaultSrtLatency: Int32 = 3000
 
+// Origin: Moblin/Various/Settings/Settings.swift
+let defaultRtmpStreamUrl = "rtmp://my_public_ip:1935/live/foobar"
+
 // MARK: - Origin: Moblin/Various/Settings/SettingsStream.swift
+
+enum SettingsStreamRateControl: String, Codable, CaseIterable {
+    case abr = "ABR"
+    case cbr = "CBR"
+    case vbr = "VBR"
+
+    func toString() -> String {
+        switch self {
+        case .abr:
+            String(localized: "ABR (Average)")
+        case .cbr:
+            String(localized: "CBR (Constant)")
+        case .vbr:
+            String(localized: "VBR (Variable)")
+        }
+    }
+
+    func shortString() -> String {
+        switch self {
+        case .abr:
+            String(localized: "ABR")
+        case .cbr:
+            String(localized: "CBR")
+        case .vbr:
+            String(localized: "VBR")
+        }
+    }
+
+    static func cases() -> [SettingsStreamRateControl] {
+        var cases: [SettingsStreamRateControl] = [
+            .abr,
+            .cbr,
+        ]
+        if #available(iOS 26, *) {
+            cases.append(.vbr)
+        }
+        return cases
+    }
+
+    static func makeValid(value: SettingsStreamRateControl) -> SettingsStreamRateControl {
+        if #available(iOS 26, *) {
+            value
+        } else {
+            switch value {
+            case .vbr:
+                .abr
+            default:
+                value
+            }
+        }
+    }
+}
+
+enum SettingsStreamResolution: String, Codable, CaseIterable {
+    case r4032x3024 = "4032x3024"
+    case r3840x2160 = "3840x2160"
+    case r2560x1440 = "2560x1440"
+    case r1920x1440 = "1920x1440"
+    case r1920x1080 = "1920x1080"
+    case r1664x936 = "1664x936"
+    case r1280x720 = "1280x720"
+    case r1024x768 = "1024x768"
+    case r960x540 = "960x540"
+    case r854x480 = "854x480"
+    case r640x360 = "640x360"
+    case r426x240 = "426x240"
+
+    static func > (lhs: SettingsStreamResolution, rhs: SettingsStreamResolution) -> Bool {
+        lhs.dimensions(portrait: false).width > rhs.dimensions(portrait: false).width
+    }
+
+    func shortString() -> String {
+        switch self {
+        case .r4032x3024:
+            "3024p (4:3)"
+        case .r3840x2160:
+            "4K"
+        case .r2560x1440:
+            "1440p"
+        case .r1920x1440:
+            "1440p (4:3)"
+        case .r1920x1080:
+            "1080p"
+        case .r1664x936:
+            "936p"
+        case .r1024x768:
+            "768p (4:3)"
+        case .r1280x720:
+            "720p"
+        case .r960x540:
+            "540p"
+        case .r854x480:
+            "480p"
+        case .r640x360:
+            "360p"
+        case .r426x240:
+            "240p"
+        }
+    }
+
+    func dimensions(portrait: Bool) -> CMVideoDimensions {
+        var size: CMVideoDimensions = switch self {
+        case .r4032x3024:
+            .init(width: 4032, height: 3024)
+        case .r3840x2160:
+            .init(width: 3840, height: 2160)
+        case .r2560x1440:
+            .init(width: 2560, height: 1440)
+        case .r1920x1440:
+            .init(width: 1920, height: 1440)
+        case .r1920x1080:
+            .init(width: 1920, height: 1080)
+        case .r1664x936:
+            .init(width: 1664, height: 936)
+        case .r1024x768:
+            .init(width: 1024, height: 768)
+        case .r1280x720:
+            .init(width: 1280, height: 720)
+        case .r960x540:
+            .init(width: 960, height: 540)
+        case .r854x480:
+            .init(width: 854, height: 480)
+        case .r640x360:
+            .init(width: 640, height: 360)
+        case .r426x240:
+            .init(width: 426, height: 240)
+        }
+        if portrait {
+            size = .init(width: size.height, height: size.width)
+        }
+        return size
+    }
+}
+
+enum SettingsStreamProtocol: String, Codable {
+    case rtmp = "RTMP"
+    case srt = "SRT"
+    case rist = "RIST"
+    case whip = "WHIP"
+
+    init(from decoder: any Decoder) throws {
+        self = try SettingsStreamProtocol(rawValue: decoder.singleValueContainer().decode(RawValue.self)) ??
+            .rtmp
+    }
+}
+
+enum SettingsStreamSrtAdaptiveBitrateAlgorithm: Codable, CaseIterable {
+    case belabox
+    case fastIrl
+    case slowIrl
+    case customIrl
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if container.contains(CodingKeys.belabox) {
+            self = .belabox
+        } else if container.contains(CodingKeys.fastIrl) {
+            self = .fastIrl
+        } else if container.contains(CodingKeys.slowIrl) {
+            self = .slowIrl
+        } else if container.contains(CodingKeys.customIrl) {
+            self = .customIrl
+        } else {
+            self = .belabox
+        }
+    }
+
+    func toString() -> String {
+        switch self {
+        case .belabox:
+            String(localized: "BELABOX")
+        case .fastIrl:
+            String(localized: "Fast IRL")
+        case .slowIrl:
+            String(localized: "Slow IRL")
+        case .customIrl:
+            String(localized: "Custom IRL")
+        }
+    }
+}
+
+class SettingsStreamMultiStreamingDestination: Codable, Identifiable, ObservableObject, Named {
+    static let baseName = String(localized: "My destination")
+    var id: UUID = .init()
+    @Published var name: String = baseName
+    @Published var url: String = defaultRtmpStreamUrl
+    @Published var enabled: Bool = false
+
+    init() {}
+
+    enum CodingKeys: CodingKey {
+        case name
+        case url
+        case enabled
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(.name, name)
+        try container.encode(.url, url)
+        try container.encode(.enabled, enabled)
+    }
+
+    required init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = container.decode(.name, String.self, Self.baseName)
+        url = container.decode(.url, String.self, defaultRtmpStreamUrl)
+        enabled = container.decode(.enabled, Bool.self, false)
+    }
+
+    func clone() -> SettingsStreamMultiStreamingDestination {
+        let new = SettingsStreamMultiStreamingDestination()
+        new.name = name
+        new.url = url
+        new.enabled = enabled
+        return new
+    }
+}
 
 enum SettingsStreamCodec: String, Codable, CaseIterable {
     case h265hevc = "H.265/HEVC"

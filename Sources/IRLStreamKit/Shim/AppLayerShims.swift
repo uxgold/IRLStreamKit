@@ -133,6 +133,11 @@ struct TimeStampRebaser {
 }
 
 // Origin: Moblin/Various/Utils/Utils.swift
+func extractSrtStreamId(url: String) -> String? {
+    URL(string: url)?.dictionaryFromQuery()["streamid"]
+}
+
+// Origin: Moblin/Various/Utils/Utils.swift
 protocol Named {
     var name: String { get }
 }
