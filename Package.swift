@@ -30,6 +30,7 @@ let package = Package(
                 .product(name: "MetalPetal", package: "MetalPetal"),
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "TrueTime", package: "TrueTime.swift"),
+                "IRLTPBonding",
             ],
             swiftSettings: [
                 .enableUpcomingFeature("BareSlashRegexLiterals"),
