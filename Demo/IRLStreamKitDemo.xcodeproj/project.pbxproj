@@ -266,6 +266,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "The demo captures video from the camera to test live streaming.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "The demo bonds SRT to a receiver on your local network to test the IRLTP transport.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo captures microphone audio to test live streaming.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -352,6 +353,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "The demo captures video from the camera to test live streaming.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "The demo bonds SRT to a receiver on your local network to test the IRLTP transport.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo captures microphone audio to test live streaming.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;

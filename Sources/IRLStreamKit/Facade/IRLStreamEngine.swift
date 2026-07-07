@@ -5,6 +5,7 @@
 
 import AVFoundation
 import Foundation
+import IRLTPBonding
 import Observation
 
 @MainActor
@@ -314,6 +315,7 @@ public final class IRLStreamEngine: StreamEngine {
         switch configuration.endpoint {
         case let .srtla(url, options), let .srt(url, options):
             let isSrtla = if case .srtla = configuration.endpoint { true } else { false }
+            selectBondingImplementation(options.bondingImplementation)
             media.srtStartStream(
                 isSrtla: isSrtla,
                 url: url.absoluteString,
@@ -342,6 +344,25 @@ public final class IRLStreamEngine: StreamEngine {
                 targetBitrate: UInt32(clamping: configuration.video.targetBitrate),
                 adaptiveBitrate: false // RTMP ABR is upstream-experimental; phase 2
             )
+        }
+    }
+
+    /// Choose the bonding transport before `srtStartStream` (which reads the
+    /// override inside `srtInitStream`). `.moblinSRTLA` clears the override so
+    /// Media builds its vendored `SrtlaClient`; `.irltp` injects the Rust-backed
+    /// adapter bonding across the cellular + wifi interfaces.
+    private func selectBondingImplementation(_ implementation: BondingImplementation) {
+        switch implementation {
+        case .moblinSRTLA:
+            media.bondingOverride = nil
+        case .irltp:
+            let links: [IRLTPBondingClient.Link] = [
+                .init(interfaceType: .cellular),
+                .init(interfaceType: .wifi),
+            ]
+            media.bondingOverride = { delegate in
+                IRLTPBondingAdapter(delegate: delegate, links: links)
+            }
         }
     }
 

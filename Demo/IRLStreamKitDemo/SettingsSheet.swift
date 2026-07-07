@@ -43,6 +43,11 @@ struct SettingsSheet: View {
                 }
                 if settings.endpointKind == .srtla {
                     Section("Bonding") {
+                        Picker("Implementation", selection: bondingImplementationBinding) {
+                            Text("Moblin SRTLA").tag(BondingImplementation.moblinSRTLA)
+                            Text("IRLTP (Rust)").tag(BondingImplementation.irltp)
+                        }
+                        .pickerStyle(.segmented)
                         Toggle("Manual priorities", isOn: $settings.manualBondingPriorities)
                         if settings.manualBondingPriorities {
                             ForEach($settings.bondingLinks) { $link in
@@ -106,6 +111,10 @@ struct SettingsSheet: View {
 
     private var adaptiveBitrateBinding: Binding<AdaptiveBitratePreset> {
         Binding(get: { settings.adaptiveBitrate }, set: { settings.adaptiveBitrate = $0 })
+    }
+
+    private var bondingImplementationBinding: Binding<BondingImplementation> {
+        Binding(get: { settings.bondingImplementation }, set: { settings.bondingImplementation = $0 })
     }
 
     private var resolutionBinding: Binding<StreamResolution> {

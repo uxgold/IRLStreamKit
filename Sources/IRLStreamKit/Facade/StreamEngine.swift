@@ -56,20 +56,30 @@ public enum StreamEndpoint: Equatable, Sendable {
     public static func srt(url: URL) -> StreamEndpoint { .srt(url: url, options: SRTOptions()) }
 }
 
+/// Which bonding stack carries the SRT flow. `moblinSRTLA` is the vendored
+/// Moblin implementation (default); `irltp` routes through the IRLTP Rust core.
+public enum BondingImplementation: String, CaseIterable, Equatable, Sendable {
+    case moblinSRTLA
+    case irltp
+}
+
 public struct SRTOptions: Equatable, Sendable {
     public var latencyMilliseconds: Int
     public var adaptiveBitrate: AdaptiveBitratePreset
     public var bondingPriorities: BondingPriorities
     public var reconnectDelaySeconds: Double
+    public var bondingImplementation: BondingImplementation
 
     public init(latencyMilliseconds: Int = 3000, // pinned: upstream defaultSrtLatency
                 adaptiveBitrate: AdaptiveBitratePreset = .belabox,
                 bondingPriorities: BondingPriorities = .automatic,
-                reconnectDelaySeconds: Double = 5) {
+                reconnectDelaySeconds: Double = 5,
+                bondingImplementation: BondingImplementation = .moblinSRTLA) {
         self.latencyMilliseconds = latencyMilliseconds
         self.adaptiveBitrate = adaptiveBitrate
         self.bondingPriorities = bondingPriorities
         self.reconnectDelaySeconds = reconnectDelaySeconds
+        self.bondingImplementation = bondingImplementation
     }
 }
 

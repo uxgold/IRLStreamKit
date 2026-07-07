@@ -60,7 +60,12 @@ final class Media: NSObject, @unchecked Sendable {
     private var ristStream: RistStream?
     private var whipStream: WhipStream?
     private var previewStreamHandler: PreviewStreamHandler?
-    private var srtlaClient: SrtlaClient?
+    // IRLTP integration (Shim): the bonding transport is a protocol so it can be
+    // the vendored SrtlaClient (default) or an injected IRLTP-backed adapter.
+    private var srtlaClient: (any LocalSrtBonding)?
+    /// When set, srtInitStream builds the bonding transport from this instead of
+    /// creating a SrtlaClient — how the facade selects the IRLTP implementation.
+    var bondingOverride: ((any SrtlaDelegate) -> any LocalSrtBonding)?
     private(set) var processor: Processor?
     private var srtTotalByteCount: Int64 = 0
     private var srtPreviousTotalByteCount: Int64 = 0
@@ -244,7 +249,9 @@ final class Media: NSObject, @unchecked Sendable {
         srtPreviousTotalByteCount = 0
         srtDroppedPacketsTotal = 0
         srtlaClient?.stop()
-        srtlaClient = SrtlaClient(
+        // IRLTP integration (Shim): use the injected transport if the facade set
+        // one, else the vendored SrtlaClient (unchanged default path).
+        srtlaClient = bondingOverride?(self) ?? SrtlaClient(
             delegate: self,
             passThrough: !isSrtla,
             mpegtsPacketsPerPacket: mpegtsPacketsPerPacket,

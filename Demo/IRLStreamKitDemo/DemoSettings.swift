@@ -26,6 +26,7 @@ struct DemoSettings: Codable, Equatable {
     var urlString: String = "srtla://"
     var latencyMilliseconds: Int = 3000
     var reconnectDelaySeconds: Double = 5
+    var bondingImplementationRaw: String = BondingImplementation.moblinSRTLA.rawValue
     var adaptiveBitrateRaw: String = AdaptiveBitratePreset.belabox.rawValue
     var manualBondingPriorities: Bool = false
     var bondingLinks: [BondingLinkSetting] = BondingPriorities.Link.Interface.allCases.map {
@@ -41,6 +42,11 @@ struct DemoSettings: Codable, Equatable {
     var adaptiveBitrate: AdaptiveBitratePreset {
         get { AdaptiveBitratePreset(rawValue: adaptiveBitrateRaw) ?? .belabox }
         set { adaptiveBitrateRaw = newValue.rawValue }
+    }
+
+    var bondingImplementation: BondingImplementation {
+        get { BondingImplementation(rawValue: bondingImplementationRaw) ?? .moblinSRTLA }
+        set { bondingImplementationRaw = newValue.rawValue }
     }
 
     var resolution: StreamResolution {
@@ -75,7 +81,8 @@ struct DemoSettings: Codable, Equatable {
             latencyMilliseconds: latencyMilliseconds,
             adaptiveBitrate: adaptiveBitrate,
             bondingPriorities: bondingPriorities,
-            reconnectDelaySeconds: reconnectDelaySeconds
+            reconnectDelaySeconds: reconnectDelaySeconds,
+            bondingImplementation: bondingImplementation
         )
         let endpoint: StreamEndpoint = switch endpointKind {
         case .srtla: .srtla(url: url, options: options)

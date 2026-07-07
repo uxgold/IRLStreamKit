@@ -44,6 +44,22 @@ files by hand:
   `Moblin/Various/Settings/SettingsStream.swift`,
   `Moblin/Various/Settings/SettingsScene.swift`
 
+## Vendored deviations (IRLTP integration)
+
+`Various/Media.swift` carries the **only** intentional edits to `Vendor/`, marked
+inline with `// IRLTP integration (Shim)`. They let Media use an alternate bonding
+transport (the IRLTP Rust core) without a rewrite:
+
+1. `srtlaClient`'s type is `(any LocalSrtBonding)?` instead of `SrtlaClient?`.
+   `LocalSrtBonding` (in `Bonding/`) is the exact method surface Media already
+   drives; `SrtlaClient` conforms via an empty non-vendored extension, so its
+   source stays byte-identical and all call sites are unchanged.
+2. An injectable `bondingOverride` property; in `srtInitStream`, the transport is
+   `bondingOverride?(self) ?? SrtlaClient(...)` — default path unchanged.
+
+On sync, re-apply these two edits if upstream overwrites them (they are small and
+localized). Everything else in `Bonding/` is non-vendored.
+
 ## Sync procedure
 
 1. `scripts/sync-upstream.sh` — reports drift between `Vendor/` and upstream main.
