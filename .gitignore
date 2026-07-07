@@ -3,3 +3,7 @@
 /.swiftpm
 xcuserdata/
 DerivedData/
+
+# IRLTP FFI build artifacts (regenerate: irltp/scripts/build-ios.sh ~/IRLStreamKit)
+Frameworks/irltp_ffi.xcframework/
+Sources/IRLTPBonding/irltp_ffi.swift

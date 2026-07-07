@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .library(name: "IRLStreamKit", targets: ["IRLStreamKit"]),
         .library(name: "IRLStreamKitTestSupport", targets: ["IRLStreamKitTestSupport"]),
+        .library(name: "IRLTPBonding", targets: ["IRLTPBonding"]),
     ],
     dependencies: [
         // Pinned to the exact revisions Moblin resolves (upstream tracks main branches).
@@ -38,9 +39,20 @@ let package = Package(
             name: "IRLStreamKitTestSupport",
             dependencies: ["IRLStreamKit"]
         ),
+        // The IRLTP sans-IO SRTLA sender (Rust core), exposed via UniFFI.
+        // irltp_ffiFFI is the C module the xcframework vends (built by
+        // irltp/scripts/build-ios.sh); IRLTPBonding is the generated Swift API.
+        .binaryTarget(
+            name: "irltp_ffiFFI",
+            path: "Frameworks/irltp_ffi.xcframework"
+        ),
+        .target(
+            name: "IRLTPBonding",
+            dependencies: ["irltp_ffiFFI"]
+        ),
         .testTarget(
             name: "IRLStreamKitTests",
-            dependencies: ["IRLStreamKit", "IRLStreamKitTestSupport"]
+            dependencies: ["IRLStreamKit", "IRLStreamKitTestSupport", "IRLTPBonding"]
         ),
     ]
 )
