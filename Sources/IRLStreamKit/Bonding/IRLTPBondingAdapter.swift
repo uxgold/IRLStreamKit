@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import IRLTPBonding
+import os
 
 /// Drop-in ``LocalSrtBonding`` backed by the IRLTP Rust core: it presents the
 /// exact interface `Media` drives on `SrtlaClient`, but the SRTLA protocol runs
@@ -15,6 +16,30 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
     private let links: [IRLTPBondingClient.Link]
     private var client: IRLTPBondingClient?
     private var readyFired = false
+
+    // Diagnostics: SRT packet flow at the adapter boundary.
+    private let log = Logger(subsystem: "com.uxirl.irltp", category: "adapter")
+    private let diagQueue = DispatchQueue(label: "irltp.adapter.diag")
+    private var diagTimer: DispatchSourceTimer?
+    private var outCounts = [String: Int]()
+    private var inCounts = [String: Int]()
+
+    /// Classify an SRT packet: "data", or a control subtype (hs/ka/ack/nak/...).
+    private static func srtKind(_ d: Data) -> String {
+        guard let b0 = d.first else { return "empty" }
+        if b0 & 0x80 == 0 { return "data" }
+        guard d.count >= 2 else { return "ctrl?" }
+        let t = (UInt16(b0) << 8 | UInt16(d[d.index(after: d.startIndex)])) & 0x7FFF
+        switch t {
+        case 0x0000: return "hs"       // handshake
+        case 0x0001: return "ka"       // keepalive
+        case 0x0002: return "ack"
+        case 0x0003: return "nak"
+        case 0x0005: return "shutdown"
+        case 0x0006: return "ackack"
+        default: return "ctrl\(t)"
+        }
+    }
 
     /// - Parameter links: one entry per bonded path. Production pins to
     ///   interface types (e.g. `.cellular`, `.wifi`); tests pass unpinned links.
@@ -43,20 +68,39 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
             srtlaClientQueue.async { self.delegate?.srtlaReady(port: 0) }
         }
         client.onForwardToLocalSrt = { [weak self] data in
-            srtlaClientQueue.async { self?.delegate?.srtlaReceivedPacket(packet: data) }
+            guard let self else { return }
+            self.diagQueue.async { self.inCounts[Self.srtKind(data), default: 0] += 1 }
+            srtlaClientQueue.async { self.delegate?.srtlaReceivedPacket(packet: data) }
         }
         self.client = client
         client.start()
+        startDiag()
     }
 
     func stop() {
+        diagTimer?.cancel(); diagTimer = nil
         client?.stop()
         client = nil
         readyFired = false
     }
 
     func handleLocalPacket(packet: Data) {
+        diagQueue.async { self.outCounts[Self.srtKind(packet), default: 0] += 1 }
         client?.sendLocalSRT(packet)
+    }
+
+    private func startDiag() {
+        let t = DispatchSource.makeTimerSource(queue: diagQueue)
+        t.schedule(deadline: .now() + 1, repeating: 1)
+        t.setEventHandler { [weak self] in
+            guard let self else { return }
+            let out = self.outCounts.sorted { $0.key < $1.key }.map { "\($0)=\($1)" }.joined(separator: ",")
+            let inn = self.inCounts.sorted { $0.key < $1.key }.map { "\($0)=\($1)" }.joined(separator: ",")
+            self.log.notice("SRT out[\(out, privacy: .public)] in[\(inn, privacy: .public)]")
+            self.outCounts.removeAll(); self.inCounts.removeAll()
+        }
+        t.resume()
+        diagTimer = t
     }
 
     func connectionStatistics() -> [BondingConnection] {
