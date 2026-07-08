@@ -17,6 +17,16 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
     private var client: IRLTPBondingClient?
     private var readyFired = false
 
+    // Official libsrt mode: the SRT engine is libsrt (SrtStreamOfficial), which
+    // sends via a callback -> handleLocalPacket -> bond, and RECEIVES on a real
+    // socket connected to a localhost listener we own. We route bond-inbound to
+    // that listener (-> libsrt), exactly as SrtlaClient does in official mode.
+    // srtlaReady must fire only once BOTH the bond has registered and the local
+    // listener is up. (Accessed on srtlaClientQueue.)
+    private var localListener: LocalListener?
+    private var bondReady = false
+    private var listenerPort: UInt16?
+
     // Diagnostics: SRT packet flow at the adapter boundary.
     private let log = Logger(subsystem: "com.uxirl.irltp", category: "adapter")
     private let diagQueue = DispatchQueue(label: "irltp.adapter.diag")
@@ -56,32 +66,48 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
             return
         }
         let client = IRLTPBondingClient(receiverHost: host, receiverPort: port16, links: links)
-        // CRITICAL: the delegate callbacks feed Moblin's SRT engine
-        // (srtlaReceivedPacket -> SrtSender.input). Moblin drives that engine's
-        // output on srtlaClientQueue, so its input MUST land on the same queue —
-        // otherwise SrtSender.input races SrtSender.enqueue and the SRT handshake
-        // never completes (frames encode but nothing ships). Match Moblin's
-        // contract by hopping onto srtlaClientQueue, exactly as SrtlaClient does.
         client.onSessionEstablished = { [weak self] in
-            guard let self, !self.readyFired else { return }
-            self.readyFired = true
-            srtlaClientQueue.async { self.delegate?.srtlaReady(port: 0) }
+            srtlaClientQueue.async { self?.bondReady = true; self?.maybeFireReady() }
         }
         client.onForwardToLocalSrt = { [weak self] data in
             guard let self else { return }
             self.diagQueue.async { self.inCounts[Self.srtKind(data), default: 0] += 1 }
-            srtlaClientQueue.async { self.delegate?.srtlaReceivedPacket(packet: data) }
+            // Official mode: hand inbound SRT to libsrt via the local listener.
+            srtlaClientQueue.async { self.localListener?.sendPacket(packet: data) }
         }
+
+        let listener = LocalListener()
+        listener.onReady = { [weak self] port in
+            srtlaClientQueue.async { self?.listenerPort = port; self?.maybeFireReady() }
+        }
+        listener.onError = { [weak self] message in
+            self?.delegate?.srtlaError(message: "IRLTP local listener: \(message)")
+        }
+
         self.client = client
+        self.localListener = listener
+        listener.start()
         client.start()
         startDiag()
+    }
+
+    /// Fire srtlaReady once the bond has registered AND the local listener is up,
+    /// giving Media the port libsrt should connect to. (On srtlaClientQueue.)
+    private func maybeFireReady() {
+        guard !readyFired, bondReady, let port = listenerPort else { return }
+        readyFired = true
+        delegate?.srtlaReady(port: port)
     }
 
     func stop() {
         diagTimer?.cancel(); diagTimer = nil
         client?.stop()
         client = nil
+        localListener?.stop()
+        localListener = nil
         readyFired = false
+        bondReady = false
+        listenerPort = nil
     }
 
     func handleLocalPacket(packet: Data) {

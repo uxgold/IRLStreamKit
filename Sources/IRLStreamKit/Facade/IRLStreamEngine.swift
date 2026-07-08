@@ -275,7 +275,9 @@ public final class IRLStreamEngine: StreamEngine {
             timecodesEnabled: false, // upstream: timecodes require NTP, off by default
             builtinAudioDelay: 0, // upstream: debug default
             destinations: [], // multi-destination RTMP is phase 2
-            srtImplementation: .moblin, // upstream default implementation
+            // IRLTP rides on the official libsrt engine (robust handshake, proven
+            // through the bond); Moblin SRTLA keeps the native engine.
+            srtImplementation: srtImplementation(for: endpoint),
             limitAdaptiveBitrateByTransportBitrate: true // upstream: rateControl != .cbr
         )
         // The fresh Processor lost the mute flag (AudioUnit.muted defaults to
@@ -351,6 +353,16 @@ public final class IRLStreamEngine: StreamEngine {
     /// override inside `srtInitStream`). `.moblinSRTLA` clears the override so
     /// Media builds its vendored `SrtlaClient`; `.irltp` injects the Rust-backed
     /// adapter bonding across the cellular + wifi interfaces.
+    /// IRLTP uses the official libsrt SRT engine; everything else keeps Moblin's.
+    private func srtImplementation(for endpoint: StreamEndpoint?) -> SettingsStreamSrtImplementation {
+        switch endpoint {
+        case let .srtla(_, options), let .srt(_, options):
+            return options.bondingImplementation == .irltp ? .official : .moblin
+        case .rtmp, .none:
+            return .moblin
+        }
+    }
+
     private func selectBondingImplementation(_ implementation: BondingImplementation) {
         switch implementation {
         case .moblinSRTLA:
