@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import os
 
 /// The IO shell around the sans-IO `IrltpSender`: it owns one UDP
 /// `NWConnection` per bonded link (optionally pinned to a specific interface),
@@ -20,6 +21,15 @@ public final class IRLTPBondingClient {
         }
     }
 
+    /// Per-link snapshot for stats/UI.
+    public struct LinkSnapshot {
+        public let interfaceType: NWInterface.InterfaceType?
+        public let registered: Bool
+        public let rttMs: UInt32?
+        public let txBytes: UInt64
+        public let rxBytes: UInt64
+    }
+
     /// Replies from the receiver (SRT ACK/NAK, and any downlink SRT) to hand
     /// back to the local SRT endpoint.
     public var onForwardToLocalSrt: ((Data) -> Void)?
@@ -35,6 +45,11 @@ public final class IRLTPBondingClient {
     private var ticker: DispatchSourceTimer?
     private var started = false
     private let epoch = DispatchTime.now().uptimeNanoseconds
+    private let log = Logger(subsystem: "com.uxirl.irltp", category: "bonding")
+    private var txBytes: [UInt64]
+    private var rxBytes: [UInt64]
+    private var tickCount = 0
+    private var establishedLogged = false
 
     public init(receiverHost: String, receiverPort: UInt16, links: [Link]) {
         precondition(!links.isEmpty, "need at least one link")
@@ -43,6 +58,8 @@ public final class IRLTPBondingClient {
         self.port = NWEndpoint.Port(rawValue: receiverPort)!
         self.links = links
         self.connections = Array(repeating: nil, count: links.count)
+        self.txBytes = Array(repeating: 0, count: links.count)
+        self.rxBytes = Array(repeating: 0, count: links.count)
     }
 
     /// Monotonic milliseconds since construction, for the session's timers.
@@ -50,16 +67,28 @@ public final class IRLTPBondingClient {
         (DispatchTime.now().uptimeNanoseconds - epoch) / 1_000_000
     }
 
+    private func ifaceName(_ i: Int) -> String {
+        switch links[i].interfaceType {
+        case .cellular: return "cell"
+        case .wifi: return "wifi"
+        case .wiredEthernet: return "eth"
+        default: return "link\(i)"
+        }
+    }
+
     public func start() {
         queue.async {
             guard !self.started else { return }
             self.started = true
+            self.log.notice("start -> \(self.host.debugDescription, privacy: .public):\(self.port.rawValue) links=\(self.links.count)")
             for i in self.links.indices { self.openConnection(i) }
             let t = DispatchSource.makeTimerSource(queue: self.queue)
             t.schedule(deadline: .now() + .milliseconds(10), repeating: .milliseconds(10))
             t.setEventHandler { [weak self] in
                 guard let self else { return }
                 self.execute(self.sender.tick(nowMs: self.nowMs()))
+                self.tickCount += 1
+                if self.tickCount % 100 == 0 { self.logStats() } // ~1s
             }
             t.resume()
             self.ticker = t
@@ -68,9 +97,13 @@ public final class IRLTPBondingClient {
 
     public func stop() {
         queue.async {
+            self.log.notice("stop")
             self.ticker?.cancel()
             self.ticker = nil
-            for c in self.connections { c?.cancel() }
+            for c in self.connections {
+                c?.stateUpdateHandler = nil // intentional teardown: no callbacks
+                c?.cancel()
+            }
             self.connections = Array(repeating: nil, count: self.links.count)
             self.started = false
         }
@@ -83,12 +116,36 @@ public final class IRLTPBondingClient {
         }
     }
 
-    /// Snapshot of a link's telemetry (thread-safe; the session locks).
+    /// Snapshot of a link's telemetry (thread-safe).
     public func linkStats(_ link: Int) -> IrltpLinkStats {
         sender.linkStats(link: UInt32(link))
     }
 
+    /// Per-link snapshot (registration, rtt, bytes) for the UI.
+    public func snapshot() -> [LinkSnapshot] {
+        queue.sync {
+            links.indices.map { i in
+                let s = sender.linkStats(link: UInt32(i))
+                return LinkSnapshot(
+                    interfaceType: links[i].interfaceType,
+                    registered: s.registered,
+                    rttMs: s.rttMs,
+                    txBytes: txBytes[i],
+                    rxBytes: rxBytes[i]
+                )
+            }
+        }
+    }
+
     // MARK: - transport (all on `queue`)
+
+    private func logStats() {
+        for i in links.indices {
+            let s = sender.linkStats(link: UInt32(i))
+            let rtt = s.rttMs.map { "\($0)ms" } ?? "-"
+            log.notice("\(self.ifaceName(i), privacy: .public) reg=\(s.registered) win=\(s.window) rtt=\(rtt, privacy: .public) tx=\(self.txBytes[i]) rx=\(self.rxBytes[i]) inflight=\(s.inFlight)")
+        }
+    }
 
     private func openConnection(_ i: Int) {
         let params = NWParameters.udp
@@ -103,9 +160,17 @@ public final class IRLTPBondingClient {
             guard let self else { return }
             switch state {
             case .ready:
+                self.log.notice("\(self.ifaceName(i), privacy: .public) ready")
                 self.execute(self.sender.linkReady(link: UInt32(i), nowMs: self.nowMs()))
-            case .failed, .cancelled:
+            case let .waiting(err):
+                // e.g. cellular path unsatisfied while wifi is primary — this is
+                // why a link may never register.
+                self.log.notice("\(self.ifaceName(i), privacy: .public) waiting: \(String(describing: err), privacy: .public)")
+            case let .failed(err):
+                self.log.error("\(self.ifaceName(i), privacy: .public) failed: \(String(describing: err), privacy: .public)")
                 self.execute(self.sender.linkFailed(link: UInt32(i), nowMs: self.nowMs()))
+            // .cancelled is intentional teardown (reconnect/stop) and MUST NOT
+            // re-trigger linkFailed — that caused an infinite reconnect churn.
             default:
                 break
             }
@@ -119,6 +184,7 @@ public final class IRLTPBondingClient {
         conn.receiveMessage { [weak self] data, _, _, error in
             guard let self else { return }
             if let data, !data.isEmpty {
+                self.rxBytes[link] += UInt64(data.count)
                 self.execute(self.sender.feedLink(link: UInt32(link), data: data, nowMs: self.nowMs()))
             }
             if error == nil, self.connections[link] === conn {
@@ -131,15 +197,20 @@ public final class IRLTPBondingClient {
         for action in actions {
             switch action {
             case let .send(link, data):
-                connections[Int(link)]?.send(content: data, completion: .contentProcessed { _ in })
+                let i = Int(link)
+                txBytes[i] += UInt64(data.count)
+                connections[i]?.send(content: data, completion: .contentProcessed { _ in })
             case let .forwardToLocalSrt(data):
                 onForwardToLocalSrt?(data)
             case let .reconnect(link):
                 let i = Int(link)
+                log.notice("\(self.ifaceName(i), privacy: .public) reconnect")
+                connections[i]?.stateUpdateHandler = nil // no .cancelled callback
                 connections[i]?.cancel()
                 connections[i] = nil
                 openConnection(i)
             case .sessionEstablished:
+                if !establishedLogged { establishedLogged = true; log.notice("session established") }
                 onSessionEstablished?()
             }
         }

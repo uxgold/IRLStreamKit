@@ -31,15 +31,19 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
             return
         }
         let client = IRLTPBondingClient(receiverHost: host, receiverPort: port16, links: links)
+        // CRITICAL: the delegate callbacks feed Moblin's SRT engine
+        // (srtlaReceivedPacket -> SrtSender.input). Moblin drives that engine's
+        // output on srtlaClientQueue, so its input MUST land on the same queue —
+        // otherwise SrtSender.input races SrtSender.enqueue and the SRT handshake
+        // never completes (frames encode but nothing ships). Match Moblin's
+        // contract by hopping onto srtlaClientQueue, exactly as SrtlaClient does.
         client.onSessionEstablished = { [weak self] in
             guard let self, !self.readyFired else { return }
             self.readyFired = true
-            // Mirror SrtlaClient: signal the SRT engine to open. port 0 = the
-            // Moblin (direct-delegate) path; the engine does not bind a socket.
-            self.delegate?.srtlaReady(port: 0)
+            srtlaClientQueue.async { self.delegate?.srtlaReady(port: 0) }
         }
         client.onForwardToLocalSrt = { [weak self] data in
-            self?.delegate?.srtlaReceivedPacket(packet: data)
+            srtlaClientQueue.async { self?.delegate?.srtlaReceivedPacket(packet: data) }
         }
         self.client = client
         client.start()
@@ -57,12 +61,11 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
 
     func connectionStatistics() -> [BondingConnection] {
         guard let client else { return [] }
-        return links.indices.compactMap { i -> BondingConnection? in
-            let s = client.linkStats(i)
+        return client.snapshot().enumerated().compactMap { i, s -> BondingConnection? in
             guard s.registered else { return nil }
             return BondingConnection(
-                name: links[i].interfaceType.map(Self.name(for:)) ?? "link\(i)",
-                usage: 0, // per-link byte deltas: future (needs FFI counters)
+                name: s.interfaceType.map(Self.name(for:)) ?? "link\(i)",
+                usage: s.txBytes,
                 rtt: s.rttMs.map { Int($0) }
             )
         }
