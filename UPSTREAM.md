@@ -56,8 +56,18 @@ transport (the IRLTP Rust core) without a rewrite:
    source stays byte-identical and all call sites are unchanged.
 2. An injectable `bondingOverride` property; in `srtInitStream`, the transport is
    `bondingOverride?(self) ?? SrtlaClient(...)` — default path unchanged.
+3. In `srtlaReady`, after the official engine opens, `srtStreamOld?.localUdpPort()`
+   is handed to the transport via `(srtlaClient as? LocalSrtPortReceiving)?`. Only
+   the IRLTP adapter conforms; the vendored `SrtlaClient` ignores it. This lets the
+   bond inject inbound SRT straight into libsrt's socket (see the SrtStreamOfficial
+   deviation), because with the send-callback set libsrt never transmits on that
+   socket, so a loopback listener would never learn the reply address.
 
-On sync, re-apply these two edits if upstream overwrites them (they are small and
+`Media/HaishinKit/Srt/SrtStreamOfficial.swift` carries one additive edit: a
+`localUdpPort()` accessor (`srt_getsockname`) exposing libsrt's bound local port,
+consumed only by deviation 3. Off the default path; unused by Moblin SRTLA.
+
+On sync, re-apply these edits if upstream overwrites them (they are small and
 localized). Everything else in `Bonding/` is non-vendored.
 
 ## Planned deviations (not yet applied)

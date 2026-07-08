@@ -95,6 +95,30 @@ class SrtStreamOfficial: @unchecked Sendable {
         return SrtPerformanceData(mon: perf)
     }
 
+    // IRLTP integration (Shim): the local UDP port libsrt bound after connect.
+    // The IRLTP bond needs this to inject inbound SRT straight into libsrt's
+    // socket, because with the send-callback set libsrt never transmits on that
+    // socket — so a loopback listener would never learn the address to reply to.
+    // Additive, off the default path (only read when the IRLTP adapter is the
+    // bonding transport). Callers must read it on processorControlQueue.
+    func localUdpPort() -> UInt16? {
+        guard socket != SRT_INVALID_SOCK else {
+            return nil
+        }
+        var addr = sockaddr_in()
+        var len = Int32(MemoryLayout<sockaddr_in>.size)
+        let result = withUnsafeMutablePointer(to: &addr) { addrPointer -> Int32 in
+            addrPointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                srt_getsockname(socket, sockaddrPointer, &len)
+            }
+        }
+        guard result != SRT_ERROR else {
+            return nil
+        }
+        let port = UInt16(bigEndian: addr.sin_port)
+        return port != 0 ? port : nil
+    }
+
     func getSndData() -> Int32 {
         guard socket != SRT_INVALID_SOCK else {
             return SRT_ERROR

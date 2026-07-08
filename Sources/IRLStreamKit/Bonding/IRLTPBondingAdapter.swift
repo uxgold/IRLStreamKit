@@ -11,19 +11,23 @@ import os
 /// The bond's replies and registration come back as the same `SrtlaDelegate`
 /// callbacks the vendored client uses — `srtlaReceivedPacket` and `srtlaReady` —
 /// so the SRT engine's lifecycle (which opens on `srtlaReady`) is unchanged.
-final class IRLTPBondingAdapter: LocalSrtBonding {
+final class IRLTPBondingAdapter: LocalSrtBonding, LocalSrtPortReceiving {
     private weak var delegate: (any SrtlaDelegate)?
     private let links: [IRLTPBondingClient.Link]
     private var client: IRLTPBondingClient?
     private var readyFired = false
 
     // Official libsrt mode: the SRT engine is libsrt (SrtStreamOfficial), which
-    // sends via a callback -> handleLocalPacket -> bond, and RECEIVES on a real
-    // socket connected to a localhost listener we own. We route bond-inbound to
-    // that listener (-> libsrt), exactly as SrtlaClient does in official mode.
-    // srtlaReady must fire only once BOTH the bond has registered and the local
-    // listener is up. (Accessed on srtlaClientQueue.)
-    private var localListener: LocalListener?
+    // sends via a callback -> handleLocalPacket -> bond. For inbound we DON'T use
+    // a loopback listener libsrt connects to: with the send-callback set, libsrt
+    // never transmits on its socket, so such a listener never learns the address
+    // to reply to (the observed dead-inbound bug). Instead we own a UDP socket
+    // bound to `injector.localPort`, tell libsrt to connect there (srtlaReady),
+    // then -- once Media hands us libsrt's own bound port via setLocalSrtPort --
+    // inject bond-inbound straight to it from our socket (the peer libsrt
+    // expects). srtlaReady fires once BOTH the bond has registered and our socket
+    // is up. (Accessed on srtlaClientQueue.)
+    private var injector: LoopbackInjector?
     private var bondReady = false
     private var listenerPort: UInt16?
 
@@ -72,23 +76,33 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
         client.onForwardToLocalSrt = { [weak self] data in
             guard let self else { return }
             self.diagQueue.async { self.inCounts[Self.srtKind(data), default: 0] += 1 }
-            // Official mode: hand inbound SRT to libsrt via the local listener.
-            srtlaClientQueue.async { self.localListener?.sendPacket(packet: data) }
+            // Official mode: inject inbound SRT straight into libsrt's socket.
+            self.injector?.send(data)
         }
 
-        let listener = LocalListener()
-        listener.onReady = { [weak self] port in
-            srtlaClientQueue.async { self?.listenerPort = port; self?.maybeFireReady() }
+        let injector = LoopbackInjector()
+        injector.onError = { [weak self] message in
+            self?.delegate?.srtlaError(message: "IRLTP inject socket: \(message)")
         }
-        listener.onError = { [weak self] message in
-            self?.delegate?.srtlaError(message: "IRLTP local listener: \(message)")
+        guard injector.start() else {
+            delegate?.srtlaError(message: "IRLTP: could not open local inject socket")
+            return
         }
 
         self.client = client
-        self.localListener = listener
-        listener.start()
+        self.injector = injector
+        srtlaClientQueue.async { [weak self] in
+            self?.listenerPort = injector.localPort
+            self?.maybeFireReady()
+        }
         client.start()
         startDiag()
+    }
+
+    /// Media hands over libsrt's bound local UDP port once the official engine
+    /// opens; from here inbound SRT can be injected straight to it.
+    func setLocalSrtPort(_ port: UInt16) {
+        injector?.setTarget(port: port)
     }
 
     /// Fire srtlaReady once the bond has registered AND the local listener is up,
@@ -103,8 +117,8 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
         diagTimer?.cancel(); diagTimer = nil
         client?.stop()
         client = nil
-        localListener?.stop()
-        localListener = nil
+        injector?.stop()
+        injector = nil
         readyFired = false
         bondReady = false
         listenerPort = nil
@@ -155,5 +169,111 @@ final class IRLTPBondingAdapter: LocalSrtBonding {
         case .wiredEthernet: return "Ethernet"
         default: return "Other"
         }
+    }
+}
+
+/// A loopback UDP socket the official SRT engine connects to. libsrt sends its
+/// output via the send-callback (to the bond), not on this socket, so we never
+/// see a "connection" form -- which is exactly why we don't use `NWListener`.
+/// Instead we bind a plain UDP socket, publish its `localPort` for libsrt to
+/// connect to, and once `setTarget(port:)` gives us libsrt's own bound port we
+/// inject bond-inbound straight to `127.0.0.1:<target>` from this socket -- the
+/// peer address libsrt's connected socket accepts. Inbound that arrives before
+/// the target is known is briefly buffered.
+private final class LoopbackInjector {
+    private(set) var localPort: UInt16 = 0
+    var onError: ((String) -> Void)?
+
+    private let queue = DispatchQueue(label: "irltp.inject")
+    private var fd: Int32 = -1
+    private var readSource: DispatchSourceRead?
+    private var target: UInt16?
+    private var pending: [Data] = []
+    private static let maxPending = 256
+
+    /// Bind to 127.0.0.1:0 and record the OS-chosen port. Synchronous; returns
+    /// false if the socket could not be created/bound.
+    func start() -> Bool {
+        let sock = socket(AF_INET, SOCK_DGRAM, 0)
+        guard sock >= 0 else { return false }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        addr.sin_port = 0
+        let bound = withUnsafePointer(to: &addr) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                bind(sock, sockaddrPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bound == 0 else { close(sock); return false }
+        var named = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let gotName = withUnsafeMutablePointer(to: &named) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                getsockname(sock, sockaddrPointer, &length)
+            }
+        }
+        guard gotName == 0 else { close(sock); return false }
+        fd = sock
+        localPort = UInt16(bigEndian: named.sin_port)
+        // Drain whatever libsrt sends here (tap case) so the recv buffer never
+        // stalls; we forward nothing -- its real output already reached the bond.
+        let source = DispatchSource.makeReadSource(fileDescriptor: sock, queue: queue)
+        source.setEventHandler { [weak self] in
+            guard let self, self.fd >= 0 else { return }
+            var buffer = [UInt8](repeating: 0, count: 2048)
+            _ = recv(self.fd, &buffer, buffer.count, 0)
+        }
+        source.setCancelHandler { close(sock) }
+        source.resume()
+        readSource = source
+        return true
+    }
+
+    /// Learn libsrt's bound local port and flush anything buffered so far.
+    func setTarget(port: UInt16) {
+        queue.async {
+            self.target = port
+            let flush = self.pending
+            self.pending.removeAll()
+            for data in flush { self.sendLocked(data) }
+        }
+    }
+
+    /// Inject one inbound SRT datagram toward libsrt.
+    func send(_ data: Data) {
+        queue.async {
+            guard self.target != nil else {
+                if self.pending.count < Self.maxPending { self.pending.append(data) }
+                return
+            }
+            self.sendLocked(data)
+        }
+    }
+
+    func stop() {
+        queue.sync {
+            readSource?.cancel() // cancel handler closes fd
+            readSource = nil
+            fd = -1
+            target = nil
+            pending.removeAll()
+        }
+    }
+
+    private func sendLocked(_ data: Data) {
+        guard fd >= 0, let target else { return }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        addr.sin_port = in_port_t(bigEndian: target)
+        let sent = data.withUnsafeBytes { raw -> Int in
+            withUnsafePointer(to: &addr) { pointer in
+                pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPointer in
+                    sendto(fd, raw.baseAddress, raw.count, 0, sockaddrPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+                }
+            }
+        }
+        if sent < 0 { onError?("sendto failed (errno \(errno))") }
     }
 }

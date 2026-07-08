@@ -22,3 +22,13 @@ protocol LocalSrtBonding: AnyObject {
 }
 
 extension SrtlaClient: LocalSrtBonding {}
+
+/// Opt-in side channel for bonding transports that inject inbound SRT directly
+/// into libsrt's socket (the IRLTP adapter) rather than via a loopback listener
+/// that libsrt connects to. Media hands over libsrt's bound local UDP port right
+/// after opening the official SRT engine; transports that don't need it (the
+/// vendored `SrtlaClient`) simply don't conform, so the `LocalSrtBonding` surface
+/// stays byte-identical to upstream.
+protocol LocalSrtPortReceiving: AnyObject {
+    func setLocalSrtPort(_ port: UInt16)
+}

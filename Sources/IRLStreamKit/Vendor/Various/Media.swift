@@ -1173,6 +1173,13 @@ extension Media: SrtlaDelegate {
                         }
                         return true
                     }
+                    // IRLTP integration (Shim): with the send-callback set, libsrt
+                    // won't transmit on its socket, so a loopback listener can't learn
+                    // where to send replies. Hand its bound local port to the bonding
+                    // transport (if it wants it) so inbound SRT can be injected direct.
+                    if let localPort = self.srtStreamOld?.localUdpPort() {
+                        (self.srtlaClient as? LocalSrtPortReceiving)?.setLocalSrtPort(localPort)
+                    }
                     DispatchQueue.main.async {
                         self.srtConnected = true
                         self.delegate.mediaOnSrtConnected()
