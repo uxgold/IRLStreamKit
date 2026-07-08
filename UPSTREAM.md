@@ -60,11 +60,25 @@ transport (the IRLTP Rust core) without a rewrite:
 On sync, re-apply these two edits if upstream overwrites them (they are small and
 localized). Everything else in `Bonding/` is non-vendored.
 
+## Planned deviations (not yet applied)
+
+Documented divergences that will be applied when a consuming feature needs them.
+Each has a rationale doc under `docs/divergences/` and a `// UXIRL: … (Dn)` marker
+convention for its edit sites.
+
+- **Live speech-to-text tap ("D6")** — `Media/HaishinKit/Media/Audio/AudioUnit.swift`.
+  Move the `streamAudio` (speech-to-text) forward off the delayed path onto the
+  live mic buffer so captions stay prompt while the stream leg is delayed to match
+  a remote camera. Latent until `builtinAudioDelay > 0` (UXIRL two-phone topology).
+  Full rationale + exact patch: [`docs/divergences/speech-to-text-live-tap.md`](docs/divergences/speech-to-text-live-tap.md).
+
 ## Sync procedure
 
 1. `scripts/sync-upstream.sh` — reports drift between `Vendor/` and upstream main.
 2. `APPLY=1 scripts/sync-upstream.sh` — pulls upstream over `Vendor/`.
 3. Diff the shim origin files for changes to the extracted blocks.
+   Re-check the applied/planned deviations above against their edit sites — search
+   for `// UXIRL:` markers and re-apply per each `docs/divergences/` note.
 4. Update the pinned commit above; check `Package.swift` revisions against
    Moblin's `Package.resolved` (upstream tracks its own forks' main branches).
 5. Build: `xcodebuild -scheme IRLStreamKit -destination 'generic/platform=iOS' build`.
