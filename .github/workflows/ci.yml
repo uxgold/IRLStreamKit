@@ -14,17 +14,19 @@ concurrency:
 jobs:
   build-test:
     name: Build & unit-test (iOS Simulator)
-    runs-on: macos-15
+    # macOS 26 image: the package needs the iOS 26 SDK, and a dependency
+    # (eerimoq/DataChannel) declares swift-tools-version 6.2, so Xcode 16.x /
+    # Swift 6.1 runners (macos-15) cannot even resolve the graph.
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
-      # The package targets the Xcode 26 / iOS 26 SDK. Hosted runners lag Xcode
-      # releases; if this pin is unavailable, bump it (or the runner image) — the
-      # `resolve` step below still guards the release-critical regression even if
-      # the SDK is too old to compile the full engine.
+      # Select the newest Xcode present on the image (Xcode 26 on macos-26).
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
 
       # Resolves the remote IRLTP binaryTarget and verifies its checksum. This is
       # the guard for "a clean clone can't build" — the exact bug 0.1.0 fixed.
