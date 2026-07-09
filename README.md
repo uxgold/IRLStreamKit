@@ -1,5 +1,7 @@
 # IRLStreamKit
 
+[![CI](https://github.com/uxgold/IRLStreamKit/actions/workflows/ci.yml/badge.svg)](https://github.com/uxgold/IRLStreamKit/actions/workflows/ci.yml)
+
 An iOS live-streaming engine as a Swift package: camera/audio capture, hardware
 H.264/HEVC encoding, RTMP, SRT with **SRTLA bonding** (cellular + WiFi bundling),
 RIST, WHIP/WebRTC, adaptive bitrate (BELABOX/IRL algorithms), and RTMP/SRTLA/RIST
