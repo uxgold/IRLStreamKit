@@ -76,3 +76,10 @@ scripts/
   sync-upstream.sh       # drift report / pull against upstream main
   check-containment.sh   # public surface must not leak vendored types
 ```
+
+## License
+
+IRLStreamKit is MIT-licensed ([LICENSE](LICENSE)). It vendors Moblin (MIT) and
+depends on several third-party libraries (SRT and libdatachannel are MPL-2.0;
+librist is BSD-2-Clause; the rest MIT/Apache-2.0). Their licenses and the
+distribution obligations are recorded in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
