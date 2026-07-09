@@ -14,20 +14,37 @@ and [UPSTREAM.md](UPSTREAM.md)).
 
 ## SwiftPM dependencies (pinned by revision in `Package.swift`)
 
-| Package | Wraps / is | Upstream license | Notes |
-|---|---|---|---|
-| `eerimoq/SrtSwift` | Haivision **SRT** (`libsrt`) | **MPL-2.0** | File-level copyleft — see obligation below. |
-| `eerimoq/DataChannel` | **libdatachannel** | **MPL-2.0** | Same obligation. |
-| `eerimoq/Rist` | VideoLAN **librist** | BSD-2-Clause | Permissive; retain the copyright notice. |
-| `eerimoq/MetalPetal` | **MetalPetal** | MIT | Permissive. |
-| `apple/swift-collections` | — | Apache-2.0 | Permissive; retain `NOTICE`/attribution if present. |
-| `Gisman4ik/TrueTime.swift` | **TrueTime.swift** | MIT | Permissive. |
+Verified via the GitHub API at each pinned revision, 2026-07-10:
 
-The `eerimoq/*` packages are build/packaging forks that bundle prebuilt
-xcframeworks of the underlying C libraries; they are expected to retain the
-upstream license of the code they wrap. **Confirm each fork's `LICENSE` at its
-pinned revision** — a fork *could* relicense, and the bundled binary carries the
-underlying library's license regardless of the wrapper.
+| Package | Wraps / is | Wrapper-repo license | Bundled-binary / effective license |
+|---|---|---|---|
+| `eerimoq/SrtSwift` | Haivision **SRT** (`libsrt`) | **none** (no LICENSE file) | libsrt is **MPL-2.0** — governs the bundled binary. |
+| `eerimoq/DataChannel` | **libdatachannel** | **none** (no LICENSE file) | libdatachannel is **MPL-2.0**. |
+| `eerimoq/Rist` | VideoLAN **librist** | **none** (no LICENSE file) | librist is **BSD-2-Clause**. |
+| `eerimoq/MetalPetal` | **MetalPetal** | **MIT** (© Yu Ao) | MIT. |
+| `apple/swift-collections` | — | **Apache-2.0** | Apache-2.0. |
+| `Gisman4ik/TrueTime.swift` | **TrueTime.swift** | **Apache-2.0** | Apache-2.0. |
+
+**Finding to resolve before shipping app binaries:** the three C-library
+packaging forks — `SrtSwift`, `DataChannel`, `Rist` — carry **no license file** at
+their pinned revisions. The prebuilt xcframeworks they bundle still carry their
+upstream licenses (MPL-2.0 / MPL-2.0 / BSD-2-Clause — those obligations stand and
+are covered below), but the *wrapper repos' own* content (the `Package.swift` and
+any Swift glue) is technically unlicensed ("all rights reserved" by default).
+Publishing IRLStreamKit's *source* is unaffected — it only references these
+packages by URL, it does not redistribute them — but before distributing an app
+binary built against them, close the gap one of these ways:
+
+1. **Build the xcframeworks yourself** from the upstream C libraries
+   ([Haivision/srt](https://github.com/Haivision/srt),
+   [paullouisageneau/libdatachannel](https://github.com/paullouisageneau/libdatachannel),
+   [librist](https://code.videolan.org/rist/librist)) so you control the packaging
+   and its license; or
+2. **Ask the fork maintainer to add a `LICENSE`** (Moblin depends on the same forks,
+   so this benefits the wider ecosystem); or
+3. rely on the bundled binaries' own licenses (MPL/BSD) and treat the trivial
+   wrapper `Package.swift` as de-minimis — acceptable in practice, but (1) or (2)
+   is cleaner for a shipped product.
 
 ## Obligations to satisfy on distribution
 
