@@ -40,14 +40,20 @@ jobs:
             -scheme IRLStreamKit \
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
-            | xcbeautify || xcodebuild build -scheme IRLStreamKit -destination 'generic/platform=iOS Simulator'
+            | xcbeautify
 
-      # Live IRLTP tests are gated on IRLTP_LIVE=1 (hardware/network) and stay
-      # skipped here. Device name may need adjusting to what the runner's Xcode ships.
+      # Pick any available iPhone simulator by UDID so this doesn't break when the
+      # runner's Xcode changes which devices it ships. Tests run via the
+      # IRLStreamKit-Package scheme (the library-product scheme has no test action).
+      # Live IRLTP tests are gated on IRLTP_LIVE=1 (hardware/network) and stay skipped.
       - name: Unit tests
         run: |
           set -o pipefail
+          UDID=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); ids=[dev['udid'] for rt,devs in d['devices'].items() if 'iOS' in rt for dev in devs if dev.get('isAvailable') and 'iPhone' in dev['name']]; print(ids[-1] if ids else '')")
+          echo "Using simulator: $UDID"
+          test -n "$UDID" || { echo 'No iPhone simulator available'; exit 1; }
           xcodebuild test \
-            -scheme IRLStreamKit \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            | xcbeautify || xcodebuild test -scheme IRLStreamKit -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+            -scheme IRLStreamKit-Package \
+            -destination "id=$UDID" \
+            | xcbeautify
