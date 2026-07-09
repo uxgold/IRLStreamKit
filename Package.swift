@@ -43,9 +43,14 @@ let package = Package(
         // The IRLTP sans-IO SRTLA sender (Rust core), exposed via UniFFI.
         // irltp_ffiFFI is the C module the xcframework vends (built by
         // irltp/scripts/build-ios.sh); IRLTPBonding is the generated Swift API.
+        // Delivered as a checksummed GitHub release asset so a clean clone builds
+        // without a sibling irltp checkout. To bump: rebuild the xcframework, zip
+        // it, `swift package compute-checksum`, upload to a new release, update both
+        // the URL tag and checksum here.
         .binaryTarget(
             name: "irltp_ffiFFI",
-            path: "Frameworks/irltp_ffi.xcframework"
+            url: "https://github.com/uxgold/IRLStreamKit/releases/download/0.1.0/irltp_ffi.xcframework.zip",
+            checksum: "5efcadbacd42eaab612b9b916b933f749a97fa8129c1134dbddc2b0d4aea9ae1"
         ),
         .target(
             name: "IRLTPBonding",

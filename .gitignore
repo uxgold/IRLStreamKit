@@ -4,6 +4,8 @@
 xcuserdata/
 DerivedData/
 
-# IRLTP FFI build artifacts (regenerate: irltp/scripts/build-ios.sh ~/IRLStreamKit)
+# IRLTP FFI xcframework: 52MB build artifact, delivered as a checksummed remote
+# binaryTarget (a GitHub release asset — see Package.swift). Rebuild locally with
+# irltp/scripts/build-ios.sh ~/IRLStreamKit. The generated UniFFI Swift binding
+# (Sources/IRLTPBonding/irltp_ffi.swift) IS committed so a clean clone builds.
 Frameworks/irltp_ffi.xcframework/
-Sources/IRLTPBonding/irltp_ffi.swift

@@ -10,6 +10,33 @@ The engine is extracted from [Moblin](https://github.com/eerimoq/moblin)
 commit, and sync procedure, and [LICENSE](LICENSE) for attribution. All credit
 for the engine internals belongs to Erik Moqvist and the Moblin contributors.
 
+## Install
+
+Add it with Swift Package Manager:
+
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/uxgold/IRLStreamKit.git", from: "0.1.0"),
+],
+targets: [
+    .target(name: "YourApp", dependencies: [
+        .product(name: "IRLStreamKit", package: "IRLStreamKit"),
+        // optional: .product(name: "IRLStreamKitTestSupport", package: "IRLStreamKit") in test targets
+    ]),
+]
+```
+
+Or in Xcode: **File → Add Package Dependencies…** → `https://github.com/uxgold/IRLStreamKit`.
+
+The IRLTP bonding core ships as a checksummed binary `xcframework` (a GitHub
+release asset), so a clean checkout builds with no sibling repo or Rust toolchain.
+Requires iOS 17+ and the Xcode 26 SDK.
+
+> **Versioning:** `0.x` — the public facade is stabilizing; minor bumps may make
+> breaking API changes until `1.0`. Pin exactly (`.exact("0.1.0")`) if you need
+> reproducibility across the app team.
+
 ## Status
 
 - Compiles standalone for iOS (deployment target 17.0, Xcode 26 SDK); unit

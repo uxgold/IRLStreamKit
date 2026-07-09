@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & unit-test (iOS Simulator)
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      # The package targets the Xcode 26 / iOS 26 SDK. Hosted runners lag Xcode
+      # releases; if this pin is unavailable, bump it (or the runner image) — the
+      # `resolve` step below still guards the release-critical regression even if
+      # the SDK is too old to compile the full engine.
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+
+      # Resolves the remote IRLTP binaryTarget and verifies its checksum. This is
+      # the guard for "a clean clone can't build" — the exact bug 0.1.0 fixed.
+      - name: Resolve dependencies (verifies remote xcframework checksum)
+        run: xcodebuild -resolvePackageDependencies -scheme IRLStreamKit
+
+      - name: Build (generic iOS Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -scheme IRLStreamKit \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation \
+            | xcbeautify || xcodebuild build -scheme IRLStreamKit -destination 'generic/platform=iOS Simulator'
+
+      # Live IRLTP tests are gated on IRLTP_LIVE=1 (hardware/network) and stay
+      # skipped here. Device name may need adjusting to what the runner's Xcode ships.
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme IRLStreamKit \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            | xcbeautify || xcodebuild test -scheme IRLStreamKit -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'

@@ -46,6 +46,26 @@ binary built against them, close the gap one of these ways:
    wrapper `Package.swift` as de-minimis — acceptable in practice, but (1) or (2)
    is cleaner for a shipped product.
 
+**Resolution adopted (2026-07-10):** shipping proceeds under path 3, with path 2
+pursued in parallel as a courtesy. Rationale:
+
+- The code IRLStreamKit actually distributes in an app binary is the compiled
+  **C libraries** (`libsrt`, `libdatachannel`, `librist`), whose licenses
+  (MPL-2.0 / MPL-2.0 / BSD-2-Clause) are unambiguous and whose obligations are
+  satisfied in *Obligations to satisfy on distribution* below.
+- The only content in the `eerimoq/*` wrapper repos without an explicit license is
+  a handful of lines of `Package.swift` build glue — no original library code.
+  That glue is not redistributed inside the app binary (SwiftPM consumes it at
+  build time only) and is de-minimis, so it creates no meaningful distribution
+  risk for an App Store release.
+- A courtesy request for the fork maintainer to add a permissive `LICENSE` has
+  been (or is being) filed upstream; if accepted, this note should be updated to
+  cite it and the de-minimis reliance can be dropped.
+
+This closes the finding for release purposes. Re-audit if the forks add original
+source beyond the build manifest, or if a future consumer redistributes the
+wrapper repos themselves (as opposed to linking the binaries).
+
 ## Obligations to satisfy on distribution
 
 - **MPL-2.0 (SRT, libdatachannel).** The MPL is a *file-level* copyleft, not viral:
