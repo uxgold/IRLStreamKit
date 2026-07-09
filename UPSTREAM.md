@@ -56,16 +56,23 @@ transport (the IRLTP Rust core) without a rewrite:
    source stays byte-identical and all call sites are unchanged.
 2. An injectable `bondingOverride` property; in `srtInitStream`, the transport is
    `bondingOverride?(self) ?? SrtlaClient(...)` — default path unchanged.
-3. In `srtlaReady`, after the official engine opens, `srtStreamOld?.localUdpPort()`
-   is handed to the transport via `(srtlaClient as? LocalSrtPortReceiving)?`. Only
-   the IRLTP adapter conforms; the vendored `SrtlaClient` ignores it. This lets the
-   bond inject inbound SRT straight into libsrt's socket (see the SrtStreamOfficial
-   deviation), because with the send-callback set libsrt never transmits on that
-   socket, so a loopback listener would never learn the reply address.
+3. In `srtlaReady`, `srtStreamOld?.open(...)` is passed an `onLocalPort` hook (only
+   when `srtlaClient is LocalSrtPortReceiving` — the IRLTP adapter; the vendored
+   `SrtlaClient` doesn't conform, so the default path passes `nil`). The hook calls
+   `setLocalSrtPort`, letting the bond inject inbound SRT straight into libsrt's
+   socket. This is needed because with the send-callback set libsrt never transmits
+   on that socket, so a loopback listener would never learn the reply address.
 
-`Media/HaishinKit/Srt/SrtStreamOfficial.swift` carries one additive edit: a
-`localUdpPort()` accessor (`srt_getsockname`) exposing libsrt's bound local port,
-consumed only by deviation 3. Off the default path; unused by Moblin SRTLA.
+`Media/HaishinKit/Srt/SrtStreamOfficial.swift` carries additive edits: (a) an
+`onLocalPort` param on `open()` and, in `connect()`, an `srt_bind(127.0.0.1:0)`
+**before** the blocking `srt_connect` that reports libsrt's bound local port via
+the hook — so the injector is aimed at libsrt before the handshake starts (else
+the handshake reply, arriving via the bond, is buffered until open() returns, but
+open() blocks in srt_connect until the handshake completes: a deadlock → timeout);
+(b) a `localUdpPort()` accessor (`srt_getsockname`); (c) `srtDiag` os.Logger lines
+at the connect/publish/writer-output boundary (the vendored `logger` can't reach
+idevicesyslog). All gated to the IRLTP path or off the default path; unused by
+Moblin SRTLA.
 
 On sync, re-apply these edits if upstream overwrites them (they are small and
 localized). Everything else in `Bonding/` is non-vendored.

@@ -1156,13 +1156,26 @@ extension Media: SrtlaDelegate {
         processorControlQueue.async {
             if self.srtStreamOld != nil {
                 do {
+                    // IRLTP integration (Shim): with the send-callback set, libsrt
+                    // won't transmit on its socket, so a loopback listener can't
+                    // learn where to reply. Instead we hand libsrt's bound local
+                    // port to the bonding transport BEFORE the blocking srt_connect
+                    // (via onLocalPort), so inbound SRT is injected straight into
+                    // libsrt as soon as the handshake reply arrives. Only transports
+                    // that want it (the IRLTP adapter) get the hook; the default
+                    // path passes nil and is unchanged.
+                    let onLocalPort: ((UInt16) -> Void)? = self.srtlaClient is LocalSrtPortReceiving
+                        ? { [weak self] localPort in
+                            (self?.srtlaClient as? LocalSrtPortReceiving)?.setLocalSrtPort(localPort)
+                        }
+                        : nil
                     try self.srtStreamOld?.open(self.makeLocalhostSrtUrl(
                         url: self.srtUrl,
                         port: port,
                         latency: self.latency,
                         overheadBandwidth: self.overheadBandwidth,
                         maximumBandwidthFollowInput: self.maximumBandwidthFollowInput
-                    )) { [weak self] data in
+                    ), onLocalPort: onLocalPort) { [weak self] data in
                         guard let self else {
                             return false
                         }
@@ -1172,13 +1185,6 @@ extension Media: SrtlaDelegate {
                             }
                         }
                         return true
-                    }
-                    // IRLTP integration (Shim): with the send-callback set, libsrt
-                    // won't transmit on its socket, so a loopback listener can't learn
-                    // where to send replies. Hand its bound local port to the bonding
-                    // transport (if it wants it) so inbound SRT can be injected direct.
-                    if let localPort = self.srtStreamOld?.localUdpPort() {
-                        (self.srtlaClient as? LocalSrtPortReceiving)?.setLocalSrtPort(localPort)
                     }
                     DispatchQueue.main.async {
                         self.srtConnected = true

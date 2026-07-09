@@ -2,6 +2,7 @@
 // this file (and the whole demo app) is the reference for how UX IRL will
 // integrate the library.
 
+import AVFoundation
 import Foundation
 import IRLStreamKit
 import Observation
@@ -56,6 +57,13 @@ final class DemoModel {
     func toggleSession() {
         if case .idle = state.phase {
             Task {
+                // IRLStreamKit's media engine sets
+                // automaticallyConfiguresApplicationAudioSession = false, so the
+                // consuming app MUST set up and activate the AVAudioSession (see
+                // Vendor HaishinKit/README.md). Without this the mic captures
+                // nothing (-160 dB), audioConfig never arrives, and the MPEG-TS
+                // muxer never emits — the stream connects but sends 0 bytes.
+                activateAudioSession()
                 do {
                     try await engine.startSession(camera: state.camera)
                 } catch {
@@ -64,7 +72,23 @@ final class DemoModel {
             }
         } else {
             engine.stopSession()
+            deactivateAudioSession()
         }
+    }
+
+    private func activateAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playAndRecord, mode: .videoRecording,
+                                    options: [.defaultToSpeaker, .allowBluetooth])
+            try session.setActive(true)
+        } catch {
+            appendText("audio session error: \(error.localizedDescription)")
+        }
+    }
+
+    private func deactivateAudioSession() {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     func toggleStream() {
