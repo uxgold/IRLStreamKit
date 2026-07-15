@@ -272,9 +272,12 @@ public protocol StreamEngine: AnyObject {
 
     // Session lifecycle (preview-before-live; endStream keeps preview alive)
     /// Requests camera+mic permission, attaches the camera, begins rendering
-    /// into any bound preview view. Idempotent; while previewing with a
-    /// different camera it switches cameras instead.
-    func startSession(camera: CameraSelection) async throws(StreamEngineError)
+    /// into any bound preview view. `video` sets the preview geometry up front
+    /// (notably `isPortrait`) so the preview matches what `goLive` will stream —
+    /// without it the preview renders in the camera's native landscape until you
+    /// go live. Idempotent; while previewing with a different camera it switches
+    /// cameras instead.
+    func startSession(camera: CameraSelection, video: VideoConfiguration) async throws(StreamEngineError)
     /// Tears down capture. Ends the stream first when still connecting.
     /// No-op while live or reconnecting — call endStream() first.
     func stopSession()
@@ -290,4 +293,13 @@ public protocol StreamEngine: AnyObject {
     func setCamera(_ camera: CameraSelection)
     func setMicMuted(_ muted: Bool)
     func setTargetBitrate(_ bitsPerSecond: Int)
+}
+
+public extension StreamEngine {
+    /// Convenience: preview with default (landscape) geometry. Prefer
+    /// `startSession(camera:video:)` when the stream is portrait so the preview
+    /// isn't sideways.
+    func startSession(camera: CameraSelection) async throws(StreamEngineError) {
+        try await startSession(camera: camera, video: VideoConfiguration())
+    }
 }

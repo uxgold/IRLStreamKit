@@ -43,7 +43,7 @@ public final class FakeStreamEngine: StreamEngine {
         broadcaster.subscribe()
     }
 
-    public func startSession(camera: CameraSelection) async throws(StreamEngineError) {
+    public func startSession(camera: CameraSelection, video: VideoConfiguration) async throws(StreamEngineError) {
         commands.append(.startSession(camera))
         guard case .idle = state.phase else {
             // Same contract as the real engine: idempotent, but honors a

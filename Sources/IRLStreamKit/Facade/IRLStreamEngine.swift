@@ -77,7 +77,7 @@ public final class IRLStreamEngine: StreamEngine {
         broadcaster.subscribe()
     }
 
-    public func startSession(camera: CameraSelection) async throws(StreamEngineError) {
+    public func startSession(camera: CameraSelection, video: VideoConfiguration) async throws(StreamEngineError) {
         guard case .idle = state.phase, !isStartingSession else {
             // Idempotent — but honor a camera switch while previewing.
             if case .previewing = state.phase, camera != state.camera {
@@ -94,7 +94,11 @@ public final class IRLStreamEngine: StreamEngine {
             throw StreamEngineError.cameraUnavailable
         }
         currentDevice = device
-        configureNetStream(endpoint: nil, video: VideoConfiguration())
+        // Configure the preview with the intended geometry (portrait/landscape,
+        // canvas size) so it isn't sideways before go-live. goLive re-applies the
+        // full encoder settings on top of this.
+        configureNetStream(endpoint: nil, video: video)
+        applyVideoGeometry(video)
         media.attachCamera(params: cameraController.attachParams(device: device))
         apply(.cameraChanged(camera))
         apply(.phaseChanged(.previewing))
@@ -295,8 +299,10 @@ public final class IRLStreamEngine: StreamEngine {
         media.setScreenPreview(enabled: true)
     }
 
-    private func applyEncoderSettings(_ configuration: StreamConfiguration) {
-        let video = configuration.video
+    /// Capture/canvas/stream dimensions + fps. Portrait swaps the canvas W/H so
+    /// the composition (and its preview drawable) is oriented upright. Shared by
+    /// `startSession` (preview) and `applyEncoderSettings` (go-live).
+    private func applyVideoGeometry(_ video: VideoConfiguration) {
         media.setVideoSize(
             capture: Mapping.captureSize(video.resolution),
             canvas: video.isPortrait
@@ -305,6 +311,11 @@ public final class IRLStreamEngine: StreamEngine {
             stream: Mapping.streamDimensions(video)
         )
         media.setFps(fps: video.frameRate, preferAutoFps: false)
+    }
+
+    private func applyEncoderSettings(_ configuration: StreamConfiguration) {
+        let video = configuration.video
+        applyVideoGeometry(video)
         media.setVideoProfile(profile: Mapping.videoProfile(video.codec))
         media.setAllowFrameReordering(value: false) // upstream: bFrames off by default
         media.setStreamKeyFrameInterval(seconds: 2) // upstream: maxKeyFrameInterval default
