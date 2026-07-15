@@ -1853,6 +1853,19 @@ final class VideoUnit: NSObject, @unchecked Sendable {
         if formats.isEmpty {
             return (nil, useAutoFrameRate, useLandscapeInPortrait, "Unsupported video pixel format")
         }
+        // UX IRL: when Center Stage is enabled (front camera), the format set as
+        // active MUST support it or `device.activeFormat = format` raises an
+        // uncatchable NSException. Prefer a Center-Stage-capable format among the
+        // matches; if none support it at this size/fps, turn Center Stage off
+        // rather than crash.
+        if AVCaptureDevice.isCenterStageEnabled {
+            let centerStageFormats = formats.filter(\.isCenterStageSupported)
+            if centerStageFormats.isEmpty {
+                AVCaptureDevice.isCenterStageEnabled = false
+            } else {
+                formats = centerStageFormats
+            }
+        }
         return (formats.first, useAutoFrameRate, useLandscapeInPortrait, nil)
     }
 
